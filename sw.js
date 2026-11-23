@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when files change.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/scene.js', 'js/player.js', 'js/speech.js', 'js/audio.js', 'js/ambience.js', 'js/store.js', 'js/epub.js', 'js/zip.js',
@@ -9,7 +9,7 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -19,10 +19,12 @@ self.addEventListener('activate', e => {
 });
 
 // Network first (so edits show up), cache as fallback when offline.
+// 'no-cache' makes the browser revalidate with the server, so a stale HTTP-cached
+// file can never be mixed with fresh ones after an update.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then(res => {
         const copy = res.clone();
         caches.open(VERSION).then(c => c.put(e.request, copy));
