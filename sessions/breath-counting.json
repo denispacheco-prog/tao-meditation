@@ -2,64 +2,209 @@
   "id": "breath-counting",
   "title": "Breath Counting",
   "technique": "breath-counting",
-  "description": "Count each out-breath from one to ten, then begin again. Opens and closes with chapters 16 and 15.",
+  "description": "Count each out-breath from one to ten, then begin again.",
   "lang": "en",
-  "durations": [10, 20],
+  "durations": [
+    3,
+    5,
+    10,
+    15,
+    20
+  ],
   "defaultDuration": 10,
-  "voice": { "rate": 0.85, "pitch": 1.0 },
+  "voice": {
+    "rate": 0.85,
+    "pitch": 1.0
+  },
   "steps": [
-    { "type": "bell", "strikes": 1 },
-    { "type": "pause", "seconds": 4 },
-
-    { "type": "speak", "text": "Find a comfortable position, seated or lying down. Let your hands rest wherever they feel natural." },
-    { "type": "pause", "seconds": 4 },
-    { "type": "speak", "text": "When you're ready, let your eyes close, or soften your gaze toward the floor in front of you." },
-    { "type": "pause", "seconds": 6 },
-
-    { "type": "speak", "text": "Before we begin, a few lines from the Tao Te Ching." },
-    { "type": "pause", "seconds": 2 },
-    { "type": "tao", "chapter": 16, "stanzas": [1], "lineGap": 1.5 },
-    { "type": "pause", "seconds": 8 },
-
-    { "type": "speak", "text": "Take a slow breath in through the nose. And let it go." },
-    { "type": "pause", "seconds": 6 },
-    { "type": "speak", "text": "Once more. Breathe in. And out, a little slower than usual." },
-    { "type": "pause", "seconds": 8 },
-
-    { "type": "speak", "text": "Now let the breath find its own rhythm. You don't need to control it. Just notice it." },
-    { "type": "pause", "seconds": 10 },
-    { "type": "speak", "text": "We'll count the breaths. Each time you breathe out, count silently. One. Then two. Up to ten. Then begin again at one." },
-    { "type": "pause", "seconds": 3 },
-    { "type": "speak", "text": "For the first round, I'll count with you." },
-
     {
-      "type": "breath",
-      "pattern": { "inhale": 4, "exhale": 6 },
-      "count": { "to": 10, "voiced": "first-round", "on": "exhale" },
-      "fill": 3
+      "type": "bell",
+      "strikes": 1
     },
-
-    { "type": "speak", "text": "If you lose the count, that's fine. Noticing that you lost it is the practice. Just begin again at one." },
-    { "type": "pause", "seconds": 6 },
-    { "type": "tao", "chapter": 15, "stanzas": [3], "lineGap": 2 },
-
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "speak",
+      "text": "Find a comfortable position, seated or lying down. Let your hands rest wherever they feel natural."
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "speak",
+      "text": "When you're ready, let your eyes close, or soften your gaze toward the floor in front of you.",
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 6,
+      "minMinutes": 5
+    },
+    {
+      "type": "speak",
+      "text": "Before we begin, a few lines from the Tao Te Ching.",
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 2,
+      "minMinutes": 5
+    },
+    {
+      "type": "tao",
+      "chapter": 16,
+      "stanzas": [
+        1
+      ],
+      "lineGap": 1.5,
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 8,
+      "minMinutes": 5
+    },
+    {
+      "type": "speak",
+      "text": "Take a slow breath in through the nose. And let it go."
+    },
+    {
+      "type": "pause",
+      "seconds": 6
+    },
+    {
+      "type": "speak",
+      "text": "Once more. Breathe in. And out, a little slower than usual.",
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 8,
+      "minMinutes": 5
+    },
+    {
+      "type": "speak",
+      "text": "Now let the breath find its own rhythm. You don't need to control it. Just notice it."
+    },
+    {
+      "type": "pause",
+      "seconds": 10
+    },
+    {
+      "type": "speak",
+      "text": "We'll count the breaths. Each time you breathe out, count silently. One. Then two. Up to ten. Then begin again at one."
+    },
+    {
+      "type": "pause",
+      "seconds": 3
+    },
+    {
+      "type": "speak",
+      "text": "For the first round, I'll count with you.",
+      "minMinutes": 5
+    },
     {
       "type": "breath",
-      "pattern": { "inhale": 4, "exhale": 6 },
-      "count": { "to": 10, "voiced": "none", "on": "exhale" },
+      "pattern": {
+        "inhale": 4,
+        "exhale": 6
+      },
+      "count": {
+        "to": 10,
+        "voiced": "first-round",
+        "on": "exhale"
+      },
+      "fill": 3,
+      "minMinutes": 5
+    },
+    {
+      "type": "breath",
+      "pattern": {
+        "inhale": 4,
+        "exhale": 6
+      },
+      "count": {
+        "to": 10,
+        "voiced": "none",
+        "on": "exhale"
+      },
+      "fill": 3,
+      "maxMinutes": 3
+    },
+    {
+      "type": "speak",
+      "text": "If you lose the count, that's fine. Noticing that you lost it is the practice. Just begin again at one."
+    },
+    {
+      "type": "pause",
+      "seconds": 6
+    },
+    {
+      "type": "tao",
+      "chapter": 15,
+      "stanzas": [
+        3
+      ],
+      "lineGap": 2,
+      "minMinutes": 10
+    },
+    {
+      "type": "breath",
+      "pattern": {
+        "inhale": 4,
+        "exhale": 6
+      },
+      "count": {
+        "to": 10,
+        "voiced": "none",
+        "on": "exhale"
+      },
       "fill": 5
     },
-
-    { "type": "speak", "text": "Now let go of the counting. Let the breath be just as it is." },
-    { "type": "pause", "fill": 1 },
-
-    { "type": "tao", "chapter": 16, "stanzas": [2], "lineGap": 2 },
-    { "type": "pause", "seconds": 10 },
-
-    { "type": "speak", "text": "Begin to notice the room around you. The sounds. The weight of your body." },
-    { "type": "pause", "seconds": 6 },
-    { "type": "speak", "text": "When you're ready, open your eyes." },
-    { "type": "pause", "seconds": 4 },
-    { "type": "bell", "strikes": 2 }
+    {
+      "type": "speak",
+      "text": "Now let go of the counting. Let the breath be just as it is."
+    },
+    {
+      "type": "pause",
+      "fill": 1
+    },
+    {
+      "type": "tao",
+      "chapter": 16,
+      "stanzas": [
+        2
+      ],
+      "lineGap": 2
+    },
+    {
+      "type": "pause",
+      "seconds": 10
+    },
+    {
+      "type": "speak",
+      "text": "Begin to notice the room around you. The sounds. The weight of your body.",
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 6,
+      "minMinutes": 5
+    },
+    {
+      "type": "speak",
+      "text": "When you're ready, open your eyes."
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "bell",
+      "strikes": 2
+    }
   ]
 }

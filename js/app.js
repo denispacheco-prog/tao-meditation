@@ -8,7 +8,8 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, voiceURI: '', minutes: {}, ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', ...loadSettings() };
+let scripts = [];
 let player = null;
 let wakeLock = null;
 
@@ -16,10 +17,11 @@ let wakeLock = null;
 async function refreshBook() {
   const n = await countChapters().catch(() => 0);
   $('book-status').textContent = n
-    ? `Tao Te Ching loaded: ${n} chapters on this device.`
+    ? `Tao Te Ching loaded · ${n} chapters on this device.`
     : 'No book loaded yet.';
   $('book-remove').hidden = !n;
-  $('book-load').firstChild.textContent = n ? 'Replace EPUB ' : 'Load EPUB ';
+  $('book-load').querySelector('span').textContent = n ? 'Replace EPUB' : 'Load EPUB';
+  $('book-hint').hidden = !!n;
 }
 
 $('book-file').addEventListener('change', async e => {
@@ -43,63 +45,113 @@ $('book-remove').addEventListener('click', async () => {
   refreshBook();
 });
 
+// ---------- settings sheet ----------
+const sheet = $('settings');
+$('open-settings').addEventListener('click', () => sheet.showModal());
+sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });   // tap outside closes
+$('book-hint').addEventListener('click', () => sheet.showModal());
+
 // ---------- voice ----------
+const REGIONS = {
+  US: 'American', GB: 'British', AU: 'Australian', IN: 'Indian', IE: 'Irish',
+  ZA: 'South African', NZ: 'New Zealand', CA: 'Canadian', NG: 'Nigerian', SG: 'Singapore'
+};
+
+function voiceLabel(v) {
+  const region = REGIONS[(v.lang.split(/[-_]/)[1] || '').toUpperCase()] || v.lang;
+  const name = v.name.replace(/^(Microsoft|Google|Apple)\s+/i, '').replace(/\s*\(.*\)\s*$/, '')
+    .replace(/\s*-\s*English.*$/i, '').replace(/^English\s*/i, '').trim();
+  return name ? `${region} · ${name}` : region;
+}
+
 async function setupVoice() {
   if (!speechAvailable()) {
-    $('settings').innerHTML = '<h2>Voice</h2><p class="note">This browser has no speech synthesis.</p>';
+    $('voice-section').innerHTML = '<h2>Voice</h2><p class="note">This browser has no speech synthesis.</p>';
     return;
   }
-  const voices = await listVoices();
+  const voices = (await listVoices())
+    .map(v => ({ v, label: voiceLabel(v) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
   const sel = $('voice');
-  sel.innerHTML = voices.map(v =>
-    `<option value="${v.voiceURI}">${v.name} (${v.lang})${v.localService ? '' : ' · online'}</option>`
+  sel.innerHTML = voices.map(({ v, label }) =>
+    `<option value="${v.voiceURI}">${label}${v.localService ? '' : ' (online)'}</option>`
   ).join('') || '<option value="">Default</option>';
-  if (settings.voiceURI && voices.some(v => v.voiceURI === settings.voiceURI)) sel.value = settings.voiceURI;
+  if (settings.voiceURI && voices.some(({ v }) => v.voiceURI === settings.voiceURI)) sel.value = settings.voiceURI;
   else settings.voiceURI = sel.value;
   $('rate').value = settings.rate;
-  $('rate-val').textContent = settings.rate.toFixed(2);
+  $('pitch').value = settings.pitch;
+  showVoiceValues();
   configure(settings);
 }
 
-$('voice').addEventListener('change', e => { settings.voiceURI = e.target.value; configure(settings); saveSettings(settings); });
-$('rate').addEventListener('input', e => {
-  settings.rate = Number(e.target.value);
+function showVoiceValues() {
   $('rate-val').textContent = settings.rate.toFixed(2);
-  configure(settings); saveSettings(settings);
-});
-$('voice-test').addEventListener('click', () => {
+  $('pitch-val').textContent = settings.pitch.toFixed(2);
+}
+
+function preview() {
   stopSpeech();
   speakOne('Find a comfortable position, and let your breath settle.');
+}
+
+$('voice').addEventListener('change', e => {
+  settings.voiceURI = e.target.value; configure(settings); saveSettings(settings); preview();
 });
+for (const id of ['rate', 'pitch']) {
+  $(id).addEventListener('input', e => {
+    settings[id] = Number(e.target.value);
+    showVoiceValues(); configure(settings); saveSettings(settings);
+  });
+  $(id).addEventListener('change', preview);
+}
+$('voice-test').addEventListener('click', preview);
 
 // ---------- sessions ----------
+const current = () => scripts.find(s => s.id === settings.session) || scripts[0];
+const chosenMinutes = s => {
+  const m = settings.minutes[s.id];
+  return s.durations.includes(m) ? m : s.defaultDuration;
+};
+
 async function loadSessions() {
   const files = await fetch('sessions/index.json').then(r => r.json());
-  const scripts = await Promise.all(files.map(f => fetch('sessions/' + f).then(r => r.json())));
-  const box = $('sessions');
-  box.innerHTML = '';
-  for (const s of scripts) {
-    const chosen = settings.minutes[s.id] || s.defaultDuration;
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <h2>Practice</h2>
-      <p class="session-title">${s.title}</p>
-      <p class="session-desc">${s.description || ''}</p>
-      <div class="row durations">${s.durations.map(m =>
-        `<button class="btn chip" data-min="${m}" aria-pressed="${m === chosen}">${m} min</button>`).join('')}</div>
-      <button class="btn start">Begin</button>`;
-    card.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
-      card.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', 'false'));
-      b.setAttribute('aria-pressed', 'true');
-      settings.minutes[s.id] = Number(b.dataset.min);
-      saveSettings(settings);
-    }));
-    card.querySelector('.start').addEventListener('click', () =>
-      start(s, settings.minutes[s.id] || s.defaultDuration));
-    box.appendChild(card);
-  }
+  scripts = await Promise.all(files.map(f => fetch('sessions/' + f).then(r => r.json())));
+  renderSessions();
 }
+
+function renderSessions() {
+  const sel = current();
+  const list = $('sessions');
+  list.innerHTML = '';
+  for (const s of scripts) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.className = 'session';
+    b.setAttribute('aria-pressed', String(s === sel));
+    b.innerHTML = `<span class="t"></span><span class="d"></span>`;
+    b.querySelector('.t').textContent = s.title;
+    b.querySelector('.d').textContent = s.description || '';
+    b.addEventListener('click', () => { settings.session = s.id; saveSettings(settings); renderSessions(); });
+    li.appendChild(b);
+    list.appendChild(li);
+  }
+  renderDurations();
+}
+
+function renderDurations() {
+  const s = current();
+  const chosen = chosenMinutes(s);
+  const box = $('durations');
+  box.innerHTML = s.durations.map(m =>
+    `<button class="dur" data-min="${m}" aria-pressed="${m === chosen}">${m}<small>min</small></button>`).join('');
+  box.querySelectorAll('.dur').forEach(b => b.addEventListener('click', () => {
+    settings.minutes[s.id] = Number(b.dataset.min);
+    saveSettings(settings);
+    renderDurations();
+  }));
+}
+
+$('begin').addEventListener('click', () => { const s = current(); if (s) start(s, chosenMinutes(s)); });
 
 // ---------- session screen ----------
 function fmt(sec) {
@@ -107,25 +159,32 @@ function fmt(sec) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
-function render(state) {
+function breathe(inhaling, seconds) {
   const c = $('circle');
-  if (state.phase === 'inhale') {
-    c.style.transitionDuration = state.seconds + 's';
-    c.classList.add('in');
-    $('label').textContent = '';
-  } else if (state.phase === 'exhale') {
-    c.style.transitionDuration = state.seconds + 's';
-    c.classList.remove('in');
-    $('label').textContent = state.label;
-  } else if (state.phase) {
-    c.style.transitionDuration = '3s';
-    c.classList.remove('in');
-    $('label').textContent = '';
-  }
-  if (state.phase === 'done') $('label').textContent = '';
-  $('remaining').textContent = state.paused ? 'paused' : fmt(state.total - state.elapsed);
-  $('pause').textContent = state.paused ? 'Resume' : 'Pause';
+  const lights = $('lights');
+  c.style.transitionDuration = seconds + 's';
+  lights.style.transitionDuration = `3s, ${seconds}s`;
+  c.classList.toggle('in', inhaling);
+  document.body.classList.toggle('inhale', inhaling);
 }
+
+function render(state) {
+  if (state.phase === 'inhale') breathe(true, state.seconds);
+  else if (state.phase === 'exhale') breathe(false, state.seconds);
+  else if (state.phase && state.phase !== 'hold') breathe(false, 3);
+  if ('label' in state) $('label').textContent = state.phase === 'done' ? '' : state.label;
+  $('remaining').textContent = state.paused ? 'paused' : fmt(state.total - state.elapsed);
+  $('pause').textContent = state.paused ? 'resume' : 'pause';
+}
+
+// Controls fade away after a few seconds; any tap brings them back.
+let quietTimer = null;
+function wake() {
+  $('session').classList.remove('quiet');
+  clearTimeout(quietTimer);
+  quietTimer = setTimeout(() => { if (player && !player.paused) $('session').classList.add('quiet'); }, 4000);
+}
+$('session').addEventListener('pointerdown', wake);
 
 async function lockScreenOn() {
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* ignore */ }
@@ -136,9 +195,13 @@ document.addEventListener('visibilitychange', () => {
 
 async function start(script, minutes) {
   initAudio();                       // must happen inside the tap
+  stopSpeech();
   configure(settings);
   $('home').hidden = true;
   $('session').hidden = false;
+  $('label').textContent = '';
+  document.body.classList.add('in-session');
+  wake();
   await lockScreenOn();
   player = new Player(script, { minutes, speed: TEST_SPEED, onUpdate: render });
   const clock = setInterval(() => player && render({ paused: player.paused, elapsed: player.elapsed(), total: player.total }), 1000);
@@ -152,13 +215,21 @@ async function start(script, minutes) {
 function end() {
   if (player) player.stop();
   player = null;
+  clearTimeout(quietTimer);
   try { wakeLock && wakeLock.release(); } catch (e) { /* ignore */ }
   wakeLock = null;
+  breathe(false, 2);
+  document.body.classList.remove('in-session', 'inhale');
   $('session').hidden = true;
+  $('session').classList.remove('quiet');
   $('home').hidden = false;
 }
 
-$('pause').addEventListener('click', () => { if (!player) return; player.paused ? player.resume() : player.pause(); });
+$('pause').addEventListener('click', () => {
+  if (!player) return;
+  player.paused ? player.resume() : player.pause();
+  wake();
+});
 $('stop').addEventListener('click', () => { if (player) player.stop(); });
 
 // ---------- boot ----------

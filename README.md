@@ -25,7 +25,9 @@ PWA pessoal de meditação guiada (em inglês) com trechos do Tao Te Ching na tr
 | `pause` | `seconds` **ou** `fill` (peso) |
 | `bell` | `strikes` |
 | `tao` | `chapter`, `stanzas` (ex.: `[1]`), `lineGap` (s entre versos) |
-| `breath` | `pattern` `{inhale, hold?, exhale}`, `count` `{to, voiced: none/first-round/all}`, `seconds` **ou** `fill` |
+| `breath` | `pattern` `{inhale, hold?, exhale, holdOut?}`, `count` `{to, voiced: none/first-round/all}`, `cues` (nº de respirações com "In/Hold/Out" falado), `seconds` **ou** `fill` |
+
+Qualquer passo aceita `minMinutes` / `maxMinutes`: ele só entra quando a duração escolhida está nesse intervalo. Assim o mesmo roteiro serve de 3 a 20 min.
 
 Os passos com `fill` dividem o tempo que sobra até a duração escolhida, em proporção aos pesos.
 

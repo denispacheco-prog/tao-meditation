@@ -1,0 +1,56 @@
+{
+  "id": "body-scan",
+  "title": "Body Scan",
+  "technique": "body-scan",
+  "description": "Move attention slowly through the body, from the feet to the crown.",
+  "lang": "en",
+  "durations": [5, 10, 15, 20],
+  "defaultDuration": 15,
+  "steps": [
+    { "type": "bell", "strikes": 1 },
+    { "type": "pause", "seconds": 4 },
+
+    { "type": "speak", "text": "Lie down if you can, or sit comfortably. Let your eyes close." },
+    { "type": "pause", "seconds": 5 },
+
+    { "type": "tao", "chapter": 10, "stanzas": [1], "lineGap": 2, "minMinutes": 10 },
+    { "type": "pause", "seconds": 8, "minMinutes": 10 },
+
+    { "type": "speak", "text": "Take a few slow breaths. Feel the weight of your body against the floor or the chair." },
+    { "type": "pause", "fill": 1 },
+
+    { "type": "speak", "text": "Bring your attention to your feet. The soles, the toes, the heels. Simply notice whatever is there. Warmth, coolness, pressure, or nothing at all." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Move up to the ankles, the calves, the knees.", "minMinutes": 10 },
+    { "type": "pause", "fill": 2, "minMinutes": 10 },
+
+    { "type": "speak", "text": "Now the legs, the hips, the pelvis. Let them be heavy." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Notice the belly. It rises and falls on its own. You don't need to help it." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "The lower back. The upper back. Let anything that is holding, soften.", "minMinutes": 10 },
+    { "type": "pause", "fill": 2, "minMinutes": 10 },
+
+    { "type": "speak", "text": "The chest, and the heartbeat, if you can feel it." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Shoulders. Arms. Hands. Let the fingers rest." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "The neck and the throat. The jaw. The small muscles around the eyes." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "The forehead, the scalp, the crown of the head." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Now feel the whole body at once. Breathing. Here." },
+    { "type": "pause", "fill": 3 },
+
+    { "type": "speak", "text": "Begin to move a little. The fingers, the toes. When you're ready, open your eyes." },
+    { "type": "pause", "seconds": 5 },
+    { "type": "bell", "strikes": 2 }
+  ]
+}

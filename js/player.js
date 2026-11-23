@@ -18,6 +18,10 @@ export class Player {
   constructor(script, { minutes, speed = 1, onUpdate = () => {} }) {
     this.script = script;
     this.total = minutes * 60;
+    // Steps can be limited to some durations: "minMinutes" / "maxMinutes".
+    this.steps = script.steps.filter(s =>
+      (s.minMinutes === undefined || minutes >= s.minMinutes) &&
+      (s.maxMinutes === undefined || minutes <= s.maxMinutes));
     this.speed = speed;            // >1 only for testing (?fast=10)
     this.onUpdate = onUpdate;
     this.paused = false;
@@ -80,7 +84,7 @@ export class Player {
 
   // ---------- planning ----------
   async preloadTao() {
-    for (const s of this.script.steps) {
+    for (const s of this.steps) {
       if (s.type !== 'tao' || this.tao.has(s.chapter)) continue;
       const ch = await getChapter(s.chapter).catch(() => null);
       this.tao.set(s.chapter, ch || null);
@@ -108,14 +112,19 @@ export class Player {
     }
   }
 
-  cycle(step) { return step.pattern.inhale + (step.pattern.hold || 0) + step.pattern.exhale; }
+  cycle(step) {
+    const p = step.pattern;
+    return p.inhale + (p.hold || 0) + p.exhale + (p.holdOut || 0);
+  }
   minBreath(step) {
-    return step.count && step.count.voiced === 'first-round' ? step.count.to * this.cycle(step) : 0;
+    if (step.count && step.count.voiced === 'first-round') return step.count.to * this.cycle(step);
+    if (step.cues) return step.cues * this.cycle(step);
+    return 0;
   }
 
   allocate(index) {
-    const step = this.script.steps[index];
-    const after = this.script.steps.slice(index + 1);
+    const step = this.steps[index];
+    const after = this.steps.slice(index + 1);
     const fixedAfter = after.reduce((t, s) => t + this.fixedSeconds(s), 0);
     const weights = [step, ...after].reduce((t, s) => t + (s.fill || 0), 0);
     const free = Math.max(0, this.total - this.elapsed() - fixedAfter);
@@ -128,7 +137,7 @@ export class Player {
     await this.preloadTao();
     this.lastTick = performance.now();
     try {
-      const steps = this.script.steps;
+      const steps = this.steps;
       for (let i = 0; i < steps.length; i++) {
         const s = steps[i];
         if (s.type === 'speak') await this.say(s.text, '');
@@ -162,27 +171,38 @@ export class Player {
     }
   }
 
+  // One breath phase: optional spoken word, then wait out the rest of the phase.
+  async phase(name, seconds, label, word) {
+    if (!seconds) return;
+    this.emit({ phase: name, label, seconds: seconds / this.speed });
+    if (name === 'inhale' || name === 'exhale') breathCue(name, seconds / this.speed);
+    if (word && this.speed === 1) {
+      const t0 = this.elapsed();
+      await speakOne(word);
+      await this.wait(Math.max(0, seconds - (this.elapsed() - t0)));
+    } else {
+      await this.wait(seconds);
+    }
+  }
+
+  // "count": count breaths on the exhale (voiced none / first-round / all).
+  // "cues": speak "In / Hold / Out" for the first N breaths.
   async runBreath(step, seconds) {
-    const { inhale, hold = 0, exhale } = step.pattern;
+    const { inhale, hold = 0, exhale, holdOut = 0 } = step.pattern;
     const breaths = Math.max(1, Math.round(seconds / this.cycle(step)));
     const to = step.count?.to || 10;
     const voiced = step.count?.voiced || 'none';
+    const cues = step.cues || 0;
     for (let b = 0; b < breaths; b++) {
       const n = (b % to) + 1;
-      this.emit({ phase: 'inhale', label: 'in', seconds: inhale / this.speed });
-      breathCue('inhale', inhale / this.speed);
-      await this.wait(inhale);
-      if (hold) { this.emit({ phase: 'hold', label: '' }); await this.wait(hold); }
-      this.emit({ phase: 'exhale', label: String(n), seconds: exhale / this.speed });
-      breathCue('exhale', exhale / this.speed);
-      const speakCount = voiced === 'all' || (voiced === 'first-round' && b < to);
-      if (speakCount && this.speed === 1) {
-        const t0 = this.elapsed();
-        await speakOne(NUMBERS[n - 1] || String(n));
-        await this.wait(Math.max(0, exhale - (this.elapsed() - t0)));
-      } else {
-        await this.wait(exhale);
-      }
+      const cue = b < cues;
+      const speakCount = step.count && (voiced === 'all' || (voiced === 'first-round' && b < to));
+      await this.phase('inhale', inhale, cue ? 'in' : '', cue && 'In');
+      await this.phase('hold', hold, cue ? 'hold' : '', cue && 'Hold');
+      await this.phase('exhale', exhale, step.count ? String(n) : cue ? 'out' : '',
+        speakCount ? (NUMBERS[n - 1] || String(n)) : cue && 'Out');
+      await this.phase('hold', holdOut, cue ? 'hold' : '', cue && 'Hold');
     }
+    this.emit({ phase: 'rest', label: '' });
   }
 }
