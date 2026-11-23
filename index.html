@@ -48,11 +48,18 @@
       </section>
 
       <section>
-        <h2>Scene</h2>
+        <h2>Look</h2>
+        <div class="choices" id="theme-choice" role="group" aria-label="Theme">
+          <button type="button" data-theme-name="day">day</button>
+          <button type="button" data-theme-name="dusk">dusk</button>
+          <button type="button" data-theme-name="night">night</button>
+        </div>
         <div class="choices" id="scene-choice" role="group" aria-label="Scene">
           <button type="button" data-scene="water">water</button>
           <button type="button" data-scene="wind">wind</button>
           <button type="button" data-scene="grass">grass</button>
+          <button type="button" data-scene="rain">rain</button>
+          <button type="button" data-scene="sand">sand</button>
           <button type="button" data-scene="light">light</button>
         </div>
       </section>
@@ -65,12 +72,24 @@
           <button type="button" data-amb="music">music</button>
           <button type="button" data-amb="both">both</button>
         </div>
+        <div id="music-row">
+          <p class="sub-label">Music</p>
+          <div class="choices" id="music-choice" role="group" aria-label="Music style">
+            <button type="button" data-music="vary">vary</button>
+            <button type="button" data-music="kalimba">kalimba</button>
+            <button type="button" data-music="flute">flute</button>
+            <button type="button" data-music="bowls">bowls</button>
+            <button type="button" data-music="pads">pads</button>
+            <button type="button" data-music="piano">piano</button>
+          </div>
+        </div>
         <label>Volume
           <input type="range" id="amb-vol" min="0" max="1" step="0.05">
         </label>
         <div class="links"><button type="button" class="link" id="amb-test">Listen</button></div>
-        <p class="note">Nature follows the scene: water → waves, wind → wind, grass → crickets in a meadow,
-          light → soft rain. Music is a slow drone with sparse notes. All sound is made on the device.</p>
+        <p class="note">Nature follows the scene: water → waves, wind → wind, grass → crickets,
+          rain and light → soft rain, sand → a small stream. “vary” plays a different music each session.
+          All sound is made on the device.</p>
       </section>
 
       <section id="voice-section">

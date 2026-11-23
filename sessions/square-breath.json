@@ -4,39 +4,94 @@
   "technique": "box-breathing",
   "description": "In, hold, out, hold — four counts each. Steadies the mind quickly.",
   "lang": "en",
-  "durations": [3, 5, 10, 15],
+  "durations": [
+    3,
+    5,
+    10,
+    15
+  ],
   "defaultDuration": 5,
   "steps": [
-    { "type": "bell", "strikes": 1 },
-    { "type": "pause", "seconds": 3 },
-
-    { "type": "speak", "text": "Sit upright, but without strain. Let your shoulders drop." },
-    { "type": "pause", "seconds": 4 },
-
-    { "type": "tao", "chapter": 5, "stanzas": [2], "lineGap": 1.5, "minMinutes": 5 },
-    { "type": "pause", "seconds": 6, "minMinutes": 5 },
-
-    { "type": "speak", "text": "We'll breathe in a square. In for four. Hold for four. Out for four. Hold for four. I'll guide the first rounds." },
-    { "type": "pause", "seconds": 2 },
+    {
+      "type": "bell",
+      "strikes": 1
+    },
+    {
+      "type": "pause",
+      "seconds": 3
+    },
+    {
+      "type": "speak",
+      "text": "Sit upright, but without strain. Let your shoulders drop."
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "tao",
+      "theme": "stillness",
+      "maxLines": 8,
+      "lineGap": 1.5,
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 6,
+      "minMinutes": 5
+    },
+    {
+      "type": "speak",
+      "text": "We'll breathe in a square. In for four. Hold for four. Out for four. Hold for four. I'll guide the first rounds."
+    },
+    {
+      "type": "pause",
+      "seconds": 2
+    },
     {
       "type": "breath",
-      "pattern": { "inhale": 4, "hold": 4, "exhale": 4, "holdOut": 4 },
+      "pattern": {
+        "inhale": 4,
+        "hold": 4,
+        "exhale": 4,
+        "holdOut": 4
+      },
       "cues": 3,
       "fill": 2
     },
-
-    { "type": "speak", "text": "Continue on your own. If a hold feels tight, make it shorter. Nothing should strain." },
+    {
+      "type": "speak",
+      "text": "Continue on your own. If a hold feels tight, make it shorter. Nothing should strain."
+    },
     {
       "type": "breath",
-      "pattern": { "inhale": 4, "hold": 4, "exhale": 4, "holdOut": 4 },
+      "pattern": {
+        "inhale": 4,
+        "hold": 4,
+        "exhale": 4,
+        "holdOut": 4
+      },
       "fill": 5
     },
-
-    { "type": "speak", "text": "Let the square dissolve. Breathe naturally." },
-    { "type": "pause", "fill": 1 },
-
-    { "type": "speak", "text": "When you're ready, open your eyes." },
-    { "type": "pause", "seconds": 3 },
-    { "type": "bell", "strikes": 2 }
+    {
+      "type": "speak",
+      "text": "Let the square dissolve. Breathe naturally."
+    },
+    {
+      "type": "pause",
+      "fill": 1
+    },
+    {
+      "type": "speak",
+      "text": "When you're ready, open your eyes."
+    },
+    {
+      "type": "pause",
+      "seconds": 3
+    },
+    {
+      "type": "bell",
+      "strikes": 2
+    }
   ]
 }

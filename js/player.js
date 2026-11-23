@@ -7,6 +7,7 @@
 import { speakOne, stopSpeech, splitSentences, estimate } from './speech.js';
 import { bell, breathCue } from './audio.js';
 import { getChapter } from './store.js';
+import { pickPassage, rememberChapters } from './tao.js';
 
 const BELL_SECONDS = 5;
 const NUMBERS = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
@@ -28,7 +29,8 @@ export class Player {
     this.stopped = false;
     this.active = 0;               // seconds of non-paused time
     this.lastTick = null;
-    this.tao = new Map();          // chapter -> { lines per stanza } preloaded
+    this.tao = new Map();          // tao step -> lines to read (resolved before starting)
+    this.chapters = [];            // chapters used in this session
     this.resumeWaiters = [];
   }
 
@@ -83,20 +85,29 @@ export class Player {
   }
 
   // ---------- planning ----------
+  // A tao step is either fixed ({ chapter, stanzas? }) or drawn from a theme
+  // ({ theme, maxLines? }), avoiding chapters read recently.
   async preloadTao() {
     for (const s of this.steps) {
-      if (s.type !== 'tao' || this.tao.has(s.chapter)) continue;
-      const ch = await getChapter(s.chapter).catch(() => null);
-      this.tao.set(s.chapter, ch || null);
+      if (s.type !== 'tao') continue;
+      let lines = [];
+      if (s.theme) {
+        const p = await pickPassage(s.theme, { maxLines: s.maxLines || 8, exclude: this.chapters, getChapter });
+        if (p) { lines = p.lines; this.chapters.push(p.chapter); }
+      } else {
+        const ch = await getChapter(s.chapter).catch(() => null);
+        if (ch) {
+          const wanted = s.stanzas || ch.stanzas.map((_, i) => i + 1);
+          lines = wanted.flatMap(i => ch.stanzas[i - 1] || []);
+          this.chapters.push(s.chapter);
+        }
+      }
+      this.tao.set(s, lines);
     }
+    if (this.chapters.length) rememberChapters(this.chapters);
   }
 
-  taoLines(step) {
-    const ch = this.tao.get(step.chapter);
-    if (!ch) return [];
-    const wanted = step.stanzas || ch.stanzas.map((_, i) => i + 1);
-    return wanted.flatMap(i => ch.stanzas[i - 1] || []);
-  }
+  taoLines(step) { return this.tao.get(step) || []; }
 
   fixedSeconds(step) {
     switch (step.type) {

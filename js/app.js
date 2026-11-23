@@ -3,14 +3,14 @@ import { saveChapters, countChapters, clearBook, askPersistence, loadSettings, s
 import { listVoices, configure, speakOne, stopSpeech, speechAvailable } from './speech.js';
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
-import { setScene, setBreath } from './scene.js';
+import { setScene, setBreath, setTheme } from './scene.js';
 import { startAmbience, stopAmbience, setAmbienceVolume, duck, pauseAmbience } from './ambience.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', ...loadSettings() };
 let scripts = [];
 let player = null;
 let wakeLock = null;
@@ -53,6 +53,20 @@ $('open-settings').addEventListener('click', () => sheet.showModal());
 sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });   // tap outside closes
 $('book-hint').addEventListener('click', () => sheet.showModal());
 
+// ---------- theme ----------
+const THEME_BG = { day: '#ede7da', dusk: '#2a2f37', night: '#0f0e0b' };
+function showTheme() {
+  if (!THEME_BG[settings.theme]) settings.theme = 'day';
+  document.documentElement.dataset.theme = settings.theme;
+  document.querySelector('meta[name=theme-color]').content = THEME_BG[settings.theme];
+  setTheme(settings.theme);
+  document.querySelectorAll('#theme-choice button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.themeName === settings.theme)));
+}
+document.querySelectorAll('#theme-choice button').forEach(b => b.addEventListener('click', () => {
+  settings.theme = b.dataset.themeName; saveSettings(settings); showTheme();
+}));
+
 // ---------- scene ----------
 function showScene() {
   setScene(settings.scene);
@@ -69,6 +83,9 @@ let previewing = null;
 function showAmbience() {
   document.querySelectorAll('#amb-choice button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.amb === settings.ambience)));
+  document.querySelectorAll('#music-choice button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.music === settings.music)));
+  $('music-row').hidden = !(settings.ambience === 'music' || settings.ambience === 'both');
   $('amb-vol').value = settings.ambienceVolume;
   $('amb-test').textContent = previewing ? 'Stop' : 'Listen';
 }
@@ -90,6 +107,10 @@ document.querySelectorAll('#amb-choice button').forEach(b => b.addEventListener(
   settings.ambience = b.dataset.amb; saveSettings(settings); showAmbience();
   if (previewing || settings.ambience !== 'none') previewSound();
   if (settings.ambience === 'none') stopPreview();
+}));
+document.querySelectorAll('#music-choice button').forEach(b => b.addEventListener('click', () => {
+  settings.music = b.dataset.music; saveSettings(settings); showAmbience();
+  previewSound();
 }));
 $('amb-vol').addEventListener('input', e => {
   settings.ambienceVolume = Number(e.target.value); saveSettings(settings);
@@ -305,6 +326,7 @@ $('pause').addEventListener('click', () => {
 $('stop').addEventListener('click', () => { if (player) player.stop(); });
 
 // ---------- boot ----------
+showTheme();
 showScene();
 showAmbience();
 refreshBook();

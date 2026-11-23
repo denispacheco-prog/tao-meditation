@@ -1,6 +1,7 @@
 // Background sound, synthesized on the device (Web Audio API): no files, no licences.
-//   nature: follows the scene: water → waves, wind → wind, grass → meadow crickets, light → soft rain
-//   music:  a low drone with slow, sparse kalimba-like notes in G major pentatonic (same key as the bell)
+//   nature: follows the scene: water → waves, wind → wind, grass → meadow crickets,
+//           rain / light → soft rain, sand → a small stream
+//   music:  kalimba, flute, bowls, pads or piano; "vary" picks a different one each time
 // Sounds are scheduled a few seconds ahead by a small loop.
 
 import { getAudio } from './audio.js';
@@ -18,7 +19,8 @@ let level = 0.5, ducked = false, paused = false;
 const buffers = {};
 
 // ---------- public ----------
-export function startAmbience({ ambience = 'none', scene = 'water', ambienceVolume = 0.5 }) {
+// Returns the music style actually played (useful when it was 'vary').
+export function startAmbience({ ambience = 'none', scene = 'water', ambienceVolume = 0.5, music = 'vary' }) {
   stopAmbience(0);
   if (ambience === 'none') return;
   A = getAudio();
@@ -29,11 +31,13 @@ export function startAmbience({ ambience = 'none', scene = 'water', ambienceVolu
   bus.gain.value = 0;
   bus.connect(A.master);
   if (ambience === 'nature' || ambience === 'both') startNature(scene);
-  if (ambience === 'music' || ambience === 'both') startMusic();
+  let style = null;
+  if (ambience === 'music' || ambience === 'both') style = startMusic(music);
   for (const g of gens) g.next = ctx.currentTime + 0.1;
   plan();
   timer = setInterval(plan, 1000);
   apply(6);
+  return style;
 }
 
 export function stopAmbience(fade = 4) {
@@ -74,6 +78,15 @@ function plan() {
 
 // ---------- building blocks ----------
 function noise(kind) {
+  const s = A.ctx.createBufferSource();
+  s.buffer = noiseBuffer(kind);
+  s.loop = true;
+  s.start(0, rand(0, 5));
+  loops.push(s);
+  return s;
+}
+
+function noiseBuffer(kind) {
   const { ctx } = A;
   const key = kind + ctx.sampleRate;
   if (!buffers[key]) {
@@ -96,12 +109,7 @@ function noise(kind) {
     }
     buffers[key] = buf;
   }
-  const s = ctx.createBufferSource();
-  s.buffer = buffers[key];
-  s.loop = true;
-  s.start(0, rand(0, 5));
-  loops.push(s);
-  return s;
+  return buffers[key];
 }
 
 function filter(type, freq, Q = 0.7) {
@@ -126,7 +134,8 @@ function startNature(scene) {
   out.connect(bus);
   if (scene === 'wind') wind(out, 1);
   else if (scene === 'grass') { wind(out, 0.35); crickets(out); }
-  else if (scene === 'light') rain(out);
+  else if (scene === 'rain' || scene === 'light') rain(out);
+  else if (scene === 'sand') stream(out);
   else waves(out);
 }
 
@@ -194,6 +203,35 @@ function crickets(out) {
   }
 }
 
+function stream(out) {
+  const { ctx } = A;
+  // the rush of water: band-limited noise whose level flickers quickly
+  const rush = filter('bandpass', 1800, 0.9);
+  const rushGain = gain(0.3);
+  chain(noise('white'), rush, rushGain, out);
+  chain(noise('brown'), filter('lowpass', 350, 0.5), gain(0.3), out);
+  gens.push({ next: 0, make(t) {
+    const dur = rand(0.08, 0.25);
+    rushGain.gain.linearRampToValueAtTime(rand(0.15, 0.4), t + dur);
+    rush.frequency.linearRampToValueAtTime(rand(1300, 2600), t + dur);
+    return dur;
+  } });
+  gens.push({ next: 0, make(t) {                 // little bubbles
+    const o = ctx.createOscillator();
+    const g = gain(0);
+    const p = panner(rand(-0.6, 0.6));
+    const f = rand(350, 900);
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * rand(1.6, 2.4), t + 0.07);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(rand(0.01, 0.025), t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    chain(o, g, p, out);
+    o.start(t); o.stop(t + 0.1);
+    return rand(0.08, 0.5);
+  } });
+}
+
 function rain(out) {
   const { ctx } = A;
   const hiss = chain(noise('pink'), filter('highpass', 700), filter('lowpass', 5500));
@@ -221,8 +259,16 @@ function rain(out) {
 }
 
 // ---------- music ----------
-const SCALE = [392, 440, 493.88, 587.33, 659.25, 783.99, 880, 987.77, 1174.66];   // G A B D E, G4..D6
-const PAD = [98, 110, 123.47, 146.83, 164.81];                                      // G2 A2 B2 D3 E3
+// Five styles; "vary" picks one at random (never the same twice in a row).
+export const MUSIC_STYLES = ['kalimba', 'flute', 'bowls', 'pads', 'piano'];
+let lastStyle = null;
+
+function resolveStyle(style) {
+  if (MUSIC_STYLES.includes(style)) return style;
+  return pick(MUSIC_STYLES.filter(s => s !== lastStyle));
+}
+
+const hz = midi => 440 * Math.pow(2, (midi - 69) / 12);
 
 function reverb(seconds = 4) {
   const { ctx } = A;
@@ -237,62 +283,72 @@ function reverb(seconds = 4) {
   return conv;
 }
 
-function startMusic() {
-  const { ctx } = A;
+function startMusic(style) {
+  const chosen = resolveStyle(style);
+  lastStyle = chosen;
   const music = gain(0.6);
-  const dry = gain(0.55), wet = gain(0.8);
-  const rev = reverb();
+  const dry = gain(0.55), wet = gain(chosen === 'bowls' ? 0.6 : 0.85);
   music.connect(dry).connect(bus);
-  music.connect(rev).connect(wet).connect(bus);
+  music.connect(reverb(chosen === 'pads' ? 5 : 4)).connect(wet).connect(bus);
+  ({ kalimba, flute, bowls, pads, piano })[chosen](music);
+  return chosen;
+}
 
-  // drone: G and D, always there
-  const droneLp = filter('lowpass', 650, 0.5);
-  const droneGain = gain(0.05);
-  droneLp.connect(droneGain).connect(music);
-  for (const [f, type, detune] of [[98, 'sine', 0], [98, 'triangle', 4], [146.83, 'sine', -3]]) {
+// A held tone that fades in and out (used for pads).
+function tone(out, f, t, { type = 'sine', level = 0.03, attack = 6, hold = 10, release = 8, cutoff = 900, detune = 0 }) {
+  const { ctx } = A;
+  const o = ctx.createOscillator();
+  const lp = filter('lowpass', cutoff, 0.5);
+  const g = gain(0);
+  o.type = type; o.frequency.value = f; o.detune.value = detune;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(level, t + attack);
+  g.gain.setValueAtTime(level, t + attack + hold);
+  g.gain.linearRampToValueAtTime(0, t + attack + hold + release);
+  chain(o, lp, g, out);
+  o.start(t); o.stop(t + attack + hold + release + 0.2);
+}
+
+function drone(out, freqs, level = 0.05, cutoff = 650) {
+  const { ctx } = A;
+  const lp = filter('lowpass', cutoff, 0.5);
+  const g = gain(level);
+  lp.connect(g).connect(out);
+  freqs.forEach((f, i) => {
     const o = ctx.createOscillator();
-    o.type = type; o.frequency.value = f; o.detune.value = detune;
-    o.connect(droneLp);
-    o.start();
-    loops.push(o);
-  }
+    o.type = i === 1 ? 'triangle' : 'sine';
+    o.frequency.value = f; o.detune.value = [0, 4, -3, 2][i % 4];
+    o.connect(lp); o.start(); loops.push(o);
+  });
+}
 
-  // slow pad notes drifting in and out over the drone
+// --- kalimba: drone on G, slow pad notes, sparse tines on G major pentatonic
+function kalimba(out) {
+  const SCALE = [392, 440, 493.88, 587.33, 659.25, 783.99, 880, 987.77, 1174.66];
+  const PAD = [98, 110, 123.47, 146.83, 164.81];
+  drone(out, [98, 98, 146.83]);
   gens.push({ next: 0, make(t) {
     const dur = rand(16, 26);
-    const o = ctx.createOscillator();
-    const lp = filter('lowpass', 900, 0.5);
-    const g = gain(0);
-    o.type = 'triangle';
-    o.frequency.value = pick(PAD) * 2;
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.025, t + 6);
-    g.gain.setValueAtTime(0.025, t + dur);
-    g.gain.linearRampToValueAtTime(0, t + dur + 8);
-    chain(o, lp, g, music);
-    o.start(t); o.stop(t + dur + 8.5);
+    tone(out, pick(PAD) * 2, t, { type: 'triangle', level: 0.025, hold: dur - 6 });
     return dur;
   } });
-
-  // sparse melody: a slow random walk on the pentatonic scale
   let idx = 3;
   gens.push({ next: 0, make(t) {
-    if (Math.random() < 0.15) return rand(6, 11);             // a longer silence now and then
+    if (Math.random() < 0.15) return rand(6, 11);
     idx = Math.max(0, Math.min(SCALE.length - 1, idx + pick([-2, -1, -1, 1, 1, 2])));
-    pluck(SCALE[idx], t, music);
-    if (Math.random() < 0.2 && idx >= 2) pluck(SCALE[idx - 2], t + rand(0.05, 0.4), music, 0.6);
+    tine(SCALE[idx], t, out);
+    if (Math.random() < 0.2 && idx >= 2) tine(SCALE[idx - 2], t + rand(0.05, 0.4), out, 0.6);
     return rand(2.5, 6.5);
   } });
 }
 
-function pluck(f, t, out, strength = 1) {
+function tine(f, t, out, strength = 1) {
   const { ctx } = A;
   const g = gain(0);
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(0.06 * strength, t + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 3.5);
   g.connect(out);
-  // fundamental plus a quiet, quickly fading overtone: a soft tine
   for (const [ratio, amp, decay] of [[1, 1, 3.5], [4.02, 0.12, 0.6]]) {
     const o = ctx.createOscillator();
     const og = gain(amp);
@@ -300,6 +356,140 @@ function pluck(f, t, out, strength = 1) {
     og.gain.setValueAtTime(amp, t);
     og.gain.exponentialRampToValueAtTime(0.0001, t + decay);
     chain(o, og, g);
+    o.start(t); o.stop(t + decay + 0.1);
+  }
+}
+
+// --- flute: breathy, bending phrases in D minor pentatonic over a faint D drone
+function flute(out) {
+  const SCALE = [62, 65, 67, 69, 72, 74, 77].map(hz);    // D4 F4 G4 A4 C5 D5 F5
+  drone(out, [73.42, 110, 146.83], 0.03, 500);
+  let idx = 2;
+  gens.push({ next: 0, make(t) {
+    const notes = Math.floor(rand(2, 5));
+    let at = t;
+    for (let k = 0; k < notes; k++) {
+      idx = Math.max(0, Math.min(SCALE.length - 1, idx + pick([-2, -1, -1, 0, 1, 1, 2])));
+      const len = k === notes - 1 ? rand(3.5, 6) : rand(1.6, 3.2);
+      blow(SCALE[idx], at, len, out);
+      at += len + rand(0.15, 0.5);
+    }
+    return at - t + rand(5, 11);                       // rest between phrases
+  } });
+}
+
+function blow(f, t, len, out) {
+  const { ctx } = A;
+  const g = gain(0);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.045, t + 0.35);
+  g.gain.setValueAtTime(0.045, t + len * 0.7);
+  g.gain.linearRampToValueAtTime(0, t + len);
+  const lp = filter('lowpass', f * 3, 0.6);
+  chain(lp, g, out);
+  // body: slight scoop up to pitch, vibrato growing after a second
+  const o = ctx.createOscillator();
+  o.frequency.setValueAtTime(f * 0.975, t);
+  o.frequency.linearRampToValueAtTime(f, t + 0.3);
+  const vib = ctx.createOscillator(), vibDepth = gain(0);
+  vib.frequency.value = 4.8;
+  vibDepth.gain.setValueAtTime(0, t);
+  vibDepth.gain.linearRampToValueAtTime(0, t + Math.min(1, len * 0.4));
+  vibDepth.gain.linearRampToValueAtTime(f * 0.006, t + len);
+  vib.connect(vibDepth).connect(o.frequency);
+  const o2 = ctx.createOscillator(), o2g = gain(0.18);
+  o2.frequency.value = f * 2;
+  o.connect(lp); o2.connect(o2g).connect(lp);
+  // breath noise around the note
+  const n = ctx.createBufferSource();
+  n.buffer = noiseBuffer('white');
+  const bp = filter('bandpass', f * 2, 2.5), ng = gain(0.5);
+  chain(n, bp, ng, lp);
+  for (const x of [o, o2, vib, n]) { x.start(t); x.stop(t + len + 0.1); }
+}
+
+// --- bowls: singing bowls of different sizes, long and overlapping
+function bowls(out) {
+  const BOWLS = [130.81, 196, 220, 261.63, 293.66, 392];  // C3 G3 A3 C4 D4 G4
+  gens.push({ next: 0, make(t) {
+    bowl(pick(BOWLS), t, out, rand(0.6, 1));
+    if (Math.random() < 0.25) bowl(pick(BOWLS), t + rand(1.5, 4), out, rand(0.4, 0.7));
+    return rand(7, 14);
+  } });
+}
+
+function bowl(f, t, out, strength) {
+  const { ctx } = A;
+  const p = panner(rand(-0.5, 0.5));
+  p.connect(out);
+  for (const [ratio, amp, decay, beat] of [[1, 0.5, 12, 0.7], [2.71, 0.2, 8, 1.3], [5.15, 0.07, 4, 2.1]]) {
+    for (const d of [0, beat]) {                        // two close partials give the slow "wah" beating
+      const o = ctx.createOscillator();
+      const g = gain(0);
+      o.frequency.value = f * ratio + d;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(amp * 0.05 * strength, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      chain(o, g, p);
+      o.start(t); o.stop(t + decay + 0.1);
+    }
+  }
+}
+
+// --- pads: slow, warm chords that dissolve into each other (no melody)
+function pads(out) {
+  const CHORDS = [
+    [38, 45, 52, 54, 61],     // Dmaj9
+    [35, 42, 50, 52, 57],     // Bm11
+    [31, 38, 50, 54, 61],     // Gmaj7#11
+    [33, 40, 49, 52, 59],     // A6/9
+    [40, 47, 50, 54, 59]      // Em9
+  ];
+  let i = 0;
+  gens.push({ next: 0, make(t) {
+    const dur = rand(18, 26);
+    i = (i + pick([1, 1, 2, 3])) % CHORDS.length;
+    CHORDS[i].forEach((m, k) => {
+      for (const det of [-6, 6]) {
+        tone(out, hz(m), t + k * 0.4, {
+          type: k === 0 ? 'sine' : 'triangle', level: k === 0 ? 0.022 : 0.012,
+          attack: 7, hold: dur - 7, release: 9, cutoff: 700 + k * 120, detune: det
+        });
+      }
+    });
+    return dur;
+  } });
+}
+
+// --- piano: soft felt-piano notes and open intervals in C major pentatonic
+function piano(out) {
+  const SCALE = [60, 62, 64, 67, 69, 72, 74, 76, 79].map(hz);   // C4 .. G5
+  const BASS = [36, 43, 45, 41].map(hz);                         // C2 G2 A2 F2
+  let idx = 4, count = 0;
+  gens.push({ next: 0, make(t) {
+    if (count++ % 6 === 0) key(pick(BASS), t, out, 0.7);
+    if (Math.random() < 0.12) return rand(5, 9);
+    idx = Math.max(0, Math.min(SCALE.length - 1, idx + pick([-2, -1, -1, 1, 1, 2])));
+    key(SCALE[idx], t, out, rand(0.6, 1));
+    if (Math.random() < 0.3 && idx >= 2) key(SCALE[idx - 2], t + rand(0, 0.08), out, 0.5);
+    return rand(1.8, 4.5);
+  } });
+}
+
+function key(f, t, out, strength) {
+  const { ctx } = A;
+  const lp = filter('lowpass', 1600, 0.4);
+  const g = gain(0.045 * strength);
+  chain(lp, g, out);
+  for (let n = 1; n <= 5; n++) {
+    const o = ctx.createOscillator();
+    const og = gain(0);
+    const amp = 1 / Math.pow(n, 1.6), decay = 4.5 / Math.sqrt(n);
+    o.frequency.value = f * n * (1 + 0.0004 * n * n);  // slight stretch, like real strings
+    og.gain.setValueAtTime(0, t);
+    og.gain.linearRampToValueAtTime(amp, t + 0.006);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+    chain(o, og, lp);
     o.start(t); o.stop(t + decay + 0.1);
   }
 }

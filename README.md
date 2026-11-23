@@ -24,12 +24,14 @@ PWA pessoal de meditação guiada (em inglês) com trechos do Tao Te Ching na tr
 | `speak` | `text` |
 | `pause` | `seconds` **ou** `fill` (peso) |
 | `bell` | `strikes` |
-| `tao` | `chapter`, `stanzas` (ex.: `[1]`), `lineGap` (s entre versos) |
+| `tao` | `theme` (stillness / softness / letting-go / nature) e `maxLines`, **ou** `chapter` + `stanzas` fixos; `lineGap` (s entre versos) |
 | `breath` | `pattern` `{inhale, hold?, exhale, holdOut?}`, `count` `{to, voiced: none/first-round/all}`, `cues` (nº de respirações com "In/Hold/Out" falado), `seconds` **ou** `fill` |
 
 Qualquer passo aceita `minMinutes` / `maxMinutes`: ele só entra quando a duração escolhida está nesse intervalo. Assim o mesmo roteiro serve de 3 a 20 min.
 
 Os passos com `fill` dividem o tempo que sobra até a duração escolhida, em proporção aos pesos.
+
+Com `theme`, o app sorteia um capítulo do tema e uma estrofe curta, evitando os 30 capítulos lidos mais recentemente (temas em `js/tao.js`).
 
 ## Testar
 Adicione `?fast=20` ao endereço para rodar 20× mais rápido, sem voz.

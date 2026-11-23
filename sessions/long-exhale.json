@@ -4,41 +4,101 @@
   "technique": "extended-exhale",
   "description": "Let each out-breath be longer than the in-breath. Calming; good in the evening.",
   "lang": "en",
-  "durations": [3, 5, 10, 15, 20],
+  "durations": [
+    3,
+    5,
+    10,
+    15,
+    20
+  ],
   "defaultDuration": 10,
   "steps": [
-    { "type": "bell", "strikes": 1 },
-    { "type": "pause", "seconds": 4 },
-
-    { "type": "speak", "text": "Lie down or sit back, and let yourself be supported." },
-    { "type": "pause", "seconds": 5 },
-    { "type": "speak", "text": "Let your jaw soften. Let your hands grow heavy.", "minMinutes": 5 },
-    { "type": "pause", "seconds": 6, "minMinutes": 5 },
-
-    { "type": "tao", "chapter": 6, "lineGap": 2, "minMinutes": 10 },
-    { "type": "pause", "seconds": 8, "minMinutes": 10 },
-
-    { "type": "speak", "text": "Breathe in gently through the nose. Then let the breath out slowly, as if through a straw. The out-breath a little longer than the in-breath." },
-    { "type": "pause", "seconds": 2 },
+    {
+      "type": "bell",
+      "strikes": 1
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "speak",
+      "text": "Lie down or sit back, and let yourself be supported."
+    },
+    {
+      "type": "pause",
+      "seconds": 5
+    },
+    {
+      "type": "speak",
+      "text": "Let your jaw soften. Let your hands grow heavy.",
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 6,
+      "minMinutes": 5
+    },
+    {
+      "type": "tao",
+      "theme": "softness",
+      "maxLines": 8,
+      "lineGap": 2,
+      "minMinutes": 10
+    },
+    {
+      "type": "pause",
+      "seconds": 8,
+      "minMinutes": 10
+    },
+    {
+      "type": "speak",
+      "text": "Breathe in gently through the nose. Then let the breath out slowly, as if through a straw. The out-breath a little longer than the in-breath."
+    },
+    {
+      "type": "pause",
+      "seconds": 2
+    },
     {
       "type": "breath",
-      "pattern": { "inhale": 4, "exhale": 7 },
+      "pattern": {
+        "inhale": 4,
+        "exhale": 7
+      },
       "cues": 2,
       "fill": 2
     },
-
-    { "type": "speak", "text": "Keep this rhythm on your own. Each out-breath, let a little more go." },
+    {
+      "type": "speak",
+      "text": "Keep this rhythm on your own. Each out-breath, let a little more go."
+    },
     {
       "type": "breath",
-      "pattern": { "inhale": 4, "exhale": 7 },
+      "pattern": {
+        "inhale": 4,
+        "exhale": 7
+      },
       "fill": 6
     },
-
-    { "type": "speak", "text": "Let the breath return to its own pace." },
-    { "type": "pause", "fill": 1 },
-
-    { "type": "speak", "text": "Stay as long as you like. Or slowly, open your eyes." },
-    { "type": "pause", "seconds": 4 },
-    { "type": "bell", "strikes": 1 }
+    {
+      "type": "speak",
+      "text": "Let the breath return to its own pace."
+    },
+    {
+      "type": "pause",
+      "fill": 1
+    },
+    {
+      "type": "speak",
+      "text": "Stay as long as you like. Or slowly, open your eyes."
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "bell",
+      "strikes": 1
+    }
   ]
 }

@@ -4,26 +4,73 @@
   "technique": "open-awareness",
   "description": "Little guidance, mostly silence. Let everything be as it is.",
   "lang": "en",
-  "durations": [3, 5, 10, 15, 20],
+  "durations": [
+    3,
+    5,
+    10,
+    15,
+    20
+  ],
   "defaultDuration": 10,
   "steps": [
-    { "type": "bell", "strikes": 3 },
-    { "type": "pause", "seconds": 4 },
-
-    { "type": "tao", "chapter": 11, "lineGap": 2, "minMinutes": 5 },
-    { "type": "pause", "seconds": 6, "minMinutes": 5 },
-
-    { "type": "speak", "text": "There is nothing to do now. Sounds come and go. Thoughts come and go. Let them." },
-    { "type": "pause", "seconds": 4 },
-    { "type": "speak", "text": "When you notice you've drifted, come back to the breath, and rest there." },
-
-    { "type": "pause", "fill": 1 },
-
-    { "type": "bell", "strikes": 1, "minMinutes": 10 },
-    { "type": "speak", "text": "Rest in the space between things.", "minMinutes": 10 },
-    { "type": "pause", "fill": 1, "minMinutes": 10 },
-
-    { "type": "pause", "seconds": 3 },
-    { "type": "bell", "strikes": 2 }
+    {
+      "type": "bell",
+      "strikes": 3
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "tao",
+      "theme": "stillness",
+      "maxLines": 8,
+      "lineGap": 2,
+      "minMinutes": 5
+    },
+    {
+      "type": "pause",
+      "seconds": 6,
+      "minMinutes": 5
+    },
+    {
+      "type": "speak",
+      "text": "There is nothing to do now. Sounds come and go. Thoughts come and go. Let them."
+    },
+    {
+      "type": "pause",
+      "seconds": 4
+    },
+    {
+      "type": "speak",
+      "text": "When you notice you've drifted, come back to the breath, and rest there."
+    },
+    {
+      "type": "pause",
+      "fill": 1
+    },
+    {
+      "type": "bell",
+      "strikes": 1,
+      "minMinutes": 10
+    },
+    {
+      "type": "speak",
+      "text": "Rest in the space between things.",
+      "minMinutes": 10
+    },
+    {
+      "type": "pause",
+      "fill": 1,
+      "minMinutes": 10
+    },
+    {
+      "type": "pause",
+      "seconds": 3
+    },
+    {
+      "type": "bell",
+      "strikes": 2
+    }
   ]
 }
