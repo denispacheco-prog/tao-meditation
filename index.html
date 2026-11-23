@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <canvas id="scene" aria-hidden="true"></canvas>
   <div id="lights" aria-hidden="true"><i></i><i></i><i></i></div>
 
   <main id="home">
@@ -44,6 +45,16 @@
           <button type="button" class="link" id="book-remove" hidden>Remove</button>
         </div>
         <p class="note">The text stays on this device.</p>
+      </section>
+
+      <section>
+        <h2>Scene</h2>
+        <div class="choices" id="scene-choice" role="group" aria-label="Scene">
+          <button type="button" data-scene="water">water</button>
+          <button type="button" data-scene="wind">wind</button>
+          <button type="button" data-scene="grass">grass</button>
+          <button type="button" data-scene="light">light</button>
+        </div>
       </section>
 
       <section id="voice-section">

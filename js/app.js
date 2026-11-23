@@ -3,12 +3,13 @@ import { saveChapters, countChapters, clearBook, askPersistence, loadSettings, s
 import { listVoices, configure, speakOne, stopSpeech, speechAvailable } from './speech.js';
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
+import { setScene, setBreath } from './scene.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ...loadSettings() };
 let scripts = [];
 let player = null;
 let wakeLock = null;
@@ -51,11 +52,32 @@ $('open-settings').addEventListener('click', () => sheet.showModal());
 sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });   // tap outside closes
 $('book-hint').addEventListener('click', () => sheet.showModal());
 
+// ---------- scene ----------
+function showScene() {
+  setScene(settings.scene);
+  document.querySelectorAll('#scene-choice button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.scene === settings.scene)));
+}
+document.querySelectorAll('#scene-choice button').forEach(b => b.addEventListener('click', () => {
+  settings.scene = b.dataset.scene; saveSettings(settings); showScene();
+}));
+
 // ---------- voice ----------
 const REGIONS = {
   US: 'American', GB: 'British', AU: 'Australian', IN: 'Indian', IE: 'Irish',
   ZA: 'South African', NZ: 'New Zealand', CA: 'Canadian', NG: 'Nigerian', SG: 'Singapore'
 };
+
+// The Web Speech API does not say whether a voice is male or female,
+// so guess from well-known voice names and Google's Android voice codes.
+const FEMALE = /\b(female|woman|zira|aria|jenny|hazel|susan|samantha|karen|moira|tessa|libby|sonia|natasha|clara|emma|michelle|ava|allison|serena|victoria|fiona|veena|kate|catherine|heera|neerja|joanna|salli|kimberly|ivy|amy|olivia|ana|emily|sara|nicky|martha|isla|maisie|linda|heather)\b|-x-(sfg|tpf|tpc|iob|iog|gba|gbc|gbg|fis|aua|aub|enc|ahp|cxx)\b/i;
+const MALE = /\b(male|man|david|mark|guy|ryan|george|daniel|james|thomas|brian|christopher|eric|roger|steffan|william|liam|aaron|fred|alex|tom|oliver|arthur|rishi|gordon|lee|ravi|prabhat|matthew|joey|justin|kevin|russell|reed|eddy)\b|-x-(tpd|iom|iol|gbb|gbd|rjs|aud|auc|end)\b/i;
+function voiceGender(v) {
+  const s = `${v.name} ${v.voiceURI}`;
+  if (FEMALE.test(s)) return 'Female';
+  if (MALE.test(s)) return 'Male';
+  return 'Other';
+}
 
 function voiceLabel(v) {
   const region = REGIONS[(v.lang.split(/[-_]/)[1] || '').toUpperCase()] || v.lang;
@@ -70,12 +92,19 @@ async function setupVoice() {
     return;
   }
   const voices = (await listVoices())
-    .map(v => ({ v, label: voiceLabel(v) }))
+    .map(v => ({ v, label: voiceLabel(v), gender: voiceGender(v) }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const sel = $('voice');
-  sel.innerHTML = voices.map(({ v, label }) =>
-    `<option value="${v.voiceURI}">${label}${v.localService ? '' : ' (online)'}</option>`
-  ).join('') || '<option value="">Default</option>';
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const option = ({ v, label }) =>
+    `<option value="${esc(v.voiceURI)}">${esc(label)}${v.localService ? '' : ' (online)'}</option>`;
+  const groups = ['Female', 'Male', 'Other']
+    .map(g => [g, voices.filter(x => x.gender === g)])
+    .filter(([, list]) => list.length);
+  sel.innerHTML = groups.length === 1 && groups[0][0] === 'Other'
+    ? groups[0][1].map(option).join('')
+    : groups.map(([g, list]) => `<optgroup label="${g}">${list.map(option).join('')}</optgroup>`).join('');
+  if (!voices.length) sel.innerHTML = '<option value="">Default</option>';
   if (settings.voiceURI && voices.some(({ v }) => v.voiceURI === settings.voiceURI)) sel.value = settings.voiceURI;
   else settings.voiceURI = sel.value;
   $('rate').value = settings.rate;
@@ -166,6 +195,7 @@ function breathe(inhaling, seconds) {
   lights.style.transitionDuration = `3s, ${seconds}s`;
   c.classList.toggle('in', inhaling);
   document.body.classList.toggle('inhale', inhaling);
+  setBreath(inhaling, seconds);
 }
 
 function render(state) {
@@ -219,6 +249,7 @@ function end() {
   try { wakeLock && wakeLock.release(); } catch (e) { /* ignore */ }
   wakeLock = null;
   breathe(false, 2);
+  setBreath(null);
   document.body.classList.remove('in-session', 'inhale');
   $('session').hidden = true;
   $('session').classList.remove('quiet');
@@ -233,6 +264,7 @@ $('pause').addEventListener('click', () => {
 $('stop').addEventListener('click', () => { if (player) player.stop(); });
 
 // ---------- boot ----------
+showScene();
 refreshBook();
 setupVoice();
 loadSessions();
