@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when files change.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/scene.js', 'js/tao.js', 'js/player.js', 'js/speech.js', 'js/audio.js', 'js/ambience.js', 'js/store.js', 'js/epub.js', 'js/zip.js',

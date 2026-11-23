@@ -3,14 +3,14 @@ import { saveChapters, countChapters, clearBook, askPersistence, loadSettings, s
 import { listVoices, configure, speakOne, stopSpeech, speechAvailable } from './speech.js';
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
-import { setScene, setBreath, setTheme } from './scene.js';
+import { setScene, setBreath, setTheme, SCENES } from './scene.js';
 import { startAmbience, stopAmbience, setAmbienceVolume, duck, pauseAmbience } from './ambience.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, ...loadSettings() };
 let scripts = [];
 let player = null;
 let wakeLock = null;
@@ -53,6 +53,29 @@ $('open-settings').addEventListener('click', () => sheet.showModal());
 sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });   // tap outside closes
 $('book-hint').addEventListener('click', () => sheet.showModal());
 
+// ---------- surprise me ----------
+// Picks a new theme and scene (never the same as last time); music varies per session.
+const pickOther = (list, current) => {
+  const options = list.filter(x => x !== current);
+  return options[Math.floor(Math.random() * options.length)];
+};
+function shuffleLook() {
+  settings.theme = pickOther(['day', 'dusk', 'night'], settings.theme);
+  settings.scene = pickOther(SCENES, settings.scene);
+  settings.music = 'vary';
+  saveSettings(settings);
+}
+if (settings.shuffle) shuffleLook();
+
+// When the app comes back after a long time in the background, it counts as a new visit.
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (settings.shuffle && !player && hiddenAt && Date.now() - hiddenAt > 20 * 60 * 1000) {
+    shuffleLook(); showTheme(); showScene(); showAmbience();
+  }
+});
+
 // ---------- theme ----------
 const THEME_BG = { day: '#ede7da', dusk: '#2a2f37', night: '#0f0e0b' };
 function showTheme() {
@@ -77,6 +100,8 @@ document.querySelectorAll('#scene-choice button').forEach(b => b.addEventListene
   settings.scene = b.dataset.scene; saveSettings(settings); showScene();
   if (previewing) previewSound();
 }));
+
+$('shuffle').addEventListener('change', e => { settings.shuffle = e.target.checked; saveSettings(settings); });
 
 // ---------- background sound ----------
 let previewing = null;
@@ -326,6 +351,7 @@ $('pause').addEventListener('click', () => {
 $('stop').addEventListener('click', () => { if (player) player.stop(); });
 
 // ---------- boot ----------
+$('shuffle').checked = settings.shuffle;
 showTheme();
 showScene();
 showAmbience();
