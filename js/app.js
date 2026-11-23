@@ -4,12 +4,13 @@ import { listVoices, configure, speakOne, stopSpeech, speechAvailable } from './
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
 import { setScene, setBreath } from './scene.js';
+import { startAmbience, stopAmbience, setAmbienceVolume, duck, pauseAmbience } from './ambience.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, ...loadSettings() };
 let scripts = [];
 let player = null;
 let wakeLock = null;
@@ -60,7 +61,42 @@ function showScene() {
 }
 document.querySelectorAll('#scene-choice button').forEach(b => b.addEventListener('click', () => {
   settings.scene = b.dataset.scene; saveSettings(settings); showScene();
+  if (previewing) previewSound();
 }));
+
+// ---------- background sound ----------
+let previewing = null;
+function showAmbience() {
+  document.querySelectorAll('#amb-choice button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.amb === settings.ambience)));
+  $('amb-vol').value = settings.ambienceVolume;
+  $('amb-test').textContent = previewing ? 'Stop' : 'Listen';
+}
+function previewSound() {
+  initAudio();
+  clearTimeout(previewing);
+  startAmbience(settings);
+  previewing = setTimeout(stopPreview, 15000);
+  showAmbience();
+}
+function stopPreview() {
+  if (!previewing) return;
+  clearTimeout(previewing);
+  previewing = null;
+  stopAmbience(2);
+  showAmbience();
+}
+document.querySelectorAll('#amb-choice button').forEach(b => b.addEventListener('click', () => {
+  settings.ambience = b.dataset.amb; saveSettings(settings); showAmbience();
+  if (previewing || settings.ambience !== 'none') previewSound();
+  if (settings.ambience === 'none') stopPreview();
+}));
+$('amb-vol').addEventListener('input', e => {
+  settings.ambienceVolume = Number(e.target.value); saveSettings(settings);
+  setAmbienceVolume(settings.ambienceVolume);
+});
+$('amb-test').addEventListener('click', () => previewing ? stopPreview() : previewSound());
+sheet.addEventListener('close', stopPreview);
 
 // ---------- voice ----------
 const REGIONS = {
@@ -202,6 +238,7 @@ function render(state) {
   if (state.phase === 'inhale') breathe(true, state.seconds);
   else if (state.phase === 'exhale') breathe(false, state.seconds);
   else if (state.phase && state.phase !== 'hold') breathe(false, 3);
+  if (state.phase) duck(state.phase === 'speak' || state.phase === 'tao');
   if ('label' in state) $('label').textContent = state.phase === 'done' ? '' : state.label;
   $('remaining').textContent = state.paused ? 'paused' : fmt(state.total - state.elapsed);
   $('pause').textContent = state.paused ? 'resume' : 'pause';
@@ -226,6 +263,8 @@ document.addEventListener('visibilitychange', () => {
 async function start(script, minutes) {
   initAudio();                       // must happen inside the tap
   stopSpeech();
+  stopPreview();
+  startAmbience(settings);
   configure(settings);
   $('home').hidden = true;
   $('session').hidden = false;
@@ -250,6 +289,7 @@ function end() {
   wakeLock = null;
   breathe(false, 2);
   setBreath(null);
+  stopAmbience(4);
   document.body.classList.remove('in-session', 'inhale');
   $('session').hidden = true;
   $('session').classList.remove('quiet');
@@ -259,12 +299,14 @@ function end() {
 $('pause').addEventListener('click', () => {
   if (!player) return;
   player.paused ? player.resume() : player.pause();
+  pauseAmbience(player.paused);
   wake();
 });
 $('stop').addEventListener('click', () => { if (player) player.stop(); });
 
 // ---------- boot ----------
 showScene();
+showAmbience();
 refreshBook();
 setupVoice();
 loadSessions();

@@ -57,6 +57,22 @@
         </div>
       </section>
 
+      <section>
+        <h2>Sound</h2>
+        <div class="choices" id="amb-choice" role="group" aria-label="Background sound">
+          <button type="button" data-amb="none">none</button>
+          <button type="button" data-amb="nature">nature</button>
+          <button type="button" data-amb="music">music</button>
+          <button type="button" data-amb="both">both</button>
+        </div>
+        <label>Volume
+          <input type="range" id="amb-vol" min="0" max="1" step="0.05">
+        </label>
+        <div class="links"><button type="button" class="link" id="amb-test">Listen</button></div>
+        <p class="note">Nature follows the scene: water → waves, wind → wind, grass → crickets in a meadow,
+          light → soft rain. Music is a slow drone with sparse notes. All sound is made on the device.</p>
+      </section>
+
       <section id="voice-section">
         <h2>Voice</h2>
         <label>Voice

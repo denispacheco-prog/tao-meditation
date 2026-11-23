@@ -15,6 +15,7 @@ export function initAudio() {
 }
 
 export function setVolume(v) { if (master) master.gain.value = v; }
+export const getAudio = () => (ctx ? { ctx, master } : null);
 
 // Inharmonic partials give a bowl-like timbre.
 export function bell(base = 196) {
