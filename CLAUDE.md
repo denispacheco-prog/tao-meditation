@@ -12,12 +12,15 @@ roteiros estão no `README.md`.
   direitos autorais: o app lê o EPUB no aparelho e guarda os capítulos no
   IndexedDB. Nada de `.epub`, nem trechos do livro copiados para o código, os
   roteiros ou os testes. O `.gitignore` bloqueia `*.epub`; não o afrouxe.
-- **Toda mudança de arquivo pede `VERSION` nova em `sw.js`** (hoje `v7`), senão
+- **Toda mudança de arquivo pede `VERSION` nova em `sw.js`**, senão
   o app instalado continua servindo a versão antiga do cache. Arquivo novo
   (um roteiro em `sessions/`, um script em `js/`) também precisa entrar na
   lista `FILES` do `sw.js`, ou não funciona offline.
 - **Roteiro novo:** crie o `.json` em `sessions/`, liste em
   `sessions/index.json` e no `FILES` do `sw.js`.
+- **Bibliotecas só em `vendor/`, com versão fixa na pasta; nada de CDN.** O
+  site divide a origem com o artigos, que guarda um token no localStorage.
+  Origem e licenças em `vendor/README.md`.
 - **Teste rápido:** abra com `?fast=20` (20× mais rápido, sem voz).
 - **O projeto é editado em mais de uma máquina.** Rode `git pull` antes de
   mexer.

@@ -1,9 +1,13 @@
-// Text-to-speech via the browser (Web Speech API).
+// Text-to-speech via the browser (Web Speech API), or via a natural
+// voice (Piper, see neural.js) when one is chosen and ready.
 // Text is spoken one sentence at a time: Chrome on Android is more
 // reliable with short utterances, and pausing can resume per sentence.
 
+import { isNeural, neuralVoice, neuralReady, setNeuralRate, speakNeural, stopNeural, prefetch } from './neural.js';
+
 const synth = window.speechSynthesis;
 let voice = null;
+let natural = null;   // chosen natural voice ({ id, slow, ... }) or null
 let rate = 0.85;
 let pitch = 1.0;
 
@@ -23,9 +27,20 @@ export function listVoices() {
 export function configure({ voiceURI, rate: r, pitch: p } = {}) {
   if (r) rate = r;
   if (p) pitch = p;
-  if (voiceURI !== undefined && synth) {
-    voice = synth.getVoices().find(v => v.voiceURI === voiceURI) || null;
+  if (voiceURI !== undefined) {
+    natural = isNeural(voiceURI) ? neuralVoice(voiceURI) : null;
+    if (synth) voice = natural ? null : synth.getVoices().find(v => v.voiceURI === voiceURI) || null;
   }
+  setNeuralRate(rate);
+}
+
+// The natural voice in use, once its model is loaded (else null).
+export const naturalVoice = () => (natural && neuralReady() ? natural : null);
+
+// Start synthesizing a session's sentences ahead of time (natural voices).
+export function prepare(texts, onProgress) {
+  if (!naturalVoice()) return Promise.resolve();
+  return prefetch(texts.flatMap(splitSentences), onProgress);
 }
 
 export const getRate = () => rate;
@@ -43,6 +58,11 @@ export function estimate(text) {
 // Speak one utterance. Resolves when it ends (or a safety timeout fires,
 // because 'end' occasionally never arrives on Android).
 export function speakOne(text) {
+  if (naturalVoice()) return speakNeural(text).catch(() => speakDevice(text));
+  return speakDevice(text);
+}
+
+function speakDevice(text) {
   return new Promise(resolve => {
     if (!synth) return setTimeout(resolve, estimate(text) * 1000);
     const u = new SpeechSynthesisUtterance(text);
@@ -59,4 +79,4 @@ export function speakOne(text) {
   });
 }
 
-export function stopSpeech() { if (synth) synth.cancel(); }
+export function stopSpeech() { if (synth) synth.cancel(); stopNeural(); }

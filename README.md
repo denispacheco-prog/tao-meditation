@@ -13,7 +13,8 @@ PWA pessoal de meditação guiada (em inglês) com trechos do Tao Te Ching na tr
 ## Estrutura
 - `sessions/*.json`: roteiros (liste novos em `sessions/index.json`)
 - `js/player.js`: executa os roteiros e distribui o tempo dos passos `fill`
-- `js/speech.js`: voz do navegador (Web Speech API)
+- `js/speech.js`: voz do navegador (Web Speech API), ou a voz natural quando escolhida
+- `js/neural.js`, `js/piper-worker.js`, `js/piper-core.js`: vozes naturais (beta), Piper rodando no aparelho; o modelo é baixado uma vez do Hugging Face. Motor em `vendor/` (veja `vendor/README.md`)
 - `js/audio.js`: sino e sons de respiração (Web Audio API)
 - `js/epub.js`, `js/zip.js`: importação do EPUB sem dependências
 - `js/store.js`: IndexedDB e preferências

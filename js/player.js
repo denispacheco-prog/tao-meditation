@@ -16,7 +16,7 @@ const NUMBERS = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight',
 class Stopped extends Error {}
 
 export class Player {
-  constructor(script, { minutes, speed = 1, onUpdate = () => {} }) {
+  constructor(script, { minutes, speed = 1, onUpdate = () => {}, prepare = null }) {
     this.script = script;
     this.total = minutes * 60;
     // Steps can be limited to some durations: "minMinutes" / "maxMinutes".
@@ -32,6 +32,8 @@ export class Player {
     this.tao = new Map();          // tao step -> lines to read (resolved before starting)
     this.chapters = [];            // chapters used in this session
     this.resumeWaiters = [];
+    this.prepare = prepare;        // optional: (texts) => Promise, awaited before the clock starts
+    this.stopped$ = new Promise(r => { this.onStopped = r; });
   }
 
   // ---------- time ----------
@@ -63,7 +65,7 @@ export class Player {
     this.resumeWaiters.splice(0).forEach(r => r());
     this.emit({});
   }
-  stop() { this.stopped = true; stopSpeech(); this.resumeWaiters.splice(0).forEach(r => r()); }
+  stop() { this.stopped = true; stopSpeech(); this.onStopped(); this.resumeWaiters.splice(0).forEach(r => r()); }
 
   emit(state) {
     this.onUpdate({ ...state, paused: this.paused, elapsed: this.elapsed(), total: this.total });
@@ -109,6 +111,22 @@ export class Player {
 
   taoLines(step) { return this.tao.get(step) || []; }
 
+  // Everything this session will say, in order (for natural voices,
+  // which synthesize ahead of time).
+  utterances() {
+    const out = [];
+    for (const s of this.steps) {
+      if (s.type === 'speak') out.push(s.text);
+      else if (s.type === 'tao') out.push(...this.taoLines(s));
+      else if (s.type === 'breath') {
+        if (s.cues) out.push('In', 'Hold', 'Out');
+        const voiced = s.count && s.count.voiced && s.count.voiced !== 'none';
+        if (voiced) out.push(...NUMBERS.slice(0, s.count.to || 10));
+      }
+    }
+    return out;
+  }
+
   fixedSeconds(step) {
     switch (step.type) {
       case 'speak': return estimate(step.text);
@@ -146,6 +164,10 @@ export class Player {
   // ---------- steps ----------
   async run() {
     await this.preloadTao();
+    if (this.prepare && this.speed === 1) {
+      await Promise.race([this.prepare(this.utterances()).catch(() => {}), this.stopped$]);
+    }
+    if (this.stopped) return;
     this.lastTick = performance.now();
     try {
       const steps = this.steps;

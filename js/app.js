@@ -1,6 +1,7 @@
 import { importEpub } from './epub.js';
 import { saveChapters, countChapters, clearBook, askPersistence, loadSettings, saveSettings } from './store.js';
-import { listVoices, configure, speakOne, stopSpeech, speechAvailable } from './speech.js';
+import { listVoices, configure, speakOne, stopSpeech, speechAvailable, prepare, naturalVoice } from './speech.js';
+import { NEURAL_VOICES, neuralURI, isNeural, neuralVoice, useVoice, isDownloaded, forgetVoices } from './neural.js';
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
 import { setScene, setBreath, setTheme, SCENES } from './scene.js';
@@ -183,30 +184,67 @@ async function setupVoice() {
   const groups = ['Female', 'Male', 'Other']
     .map(g => [g, voices.filter(x => x.gender === g)])
     .filter(([, list]) => list.length);
-  sel.innerHTML = groups.length === 1 && groups[0][0] === 'Other'
-    ? groups[0][1].map(option).join('')
-    : groups.map(([g, list]) => `<optgroup label="${g}">${list.map(option).join('')}</optgroup>`).join('');
-  if (!voices.length) sel.innerHTML = '<option value="">Default</option>';
-  if (settings.voiceURI && voices.some(({ v }) => v.voiceURI === settings.voiceURI)) sel.value = settings.voiceURI;
-  else settings.voiceURI = sel.value;
+  const natural = `<optgroup label="Natural (beta) · downloads once">${NEURAL_VOICES.map(v =>
+    `<option value="${neuralURI(v.id)}">${esc(v.label)} · ${v.gender.toLowerCase()} · ${v.mb} MB${v.slow ? ' · slow' : ''}</option>`).join('')}</optgroup>`;
+  sel.innerHTML = natural + (!voices.length
+    ? '<option value="">Default</option>'
+    : groups.length === 1 && groups[0][0] === 'Other'
+      ? groups[0][1].map(option).join('')
+      : groups.map(([g, list]) => `<optgroup label="${g}">${list.map(option).join('')}</optgroup>`).join(''));
+  const known = isNeural(settings.voiceURI) ? !!neuralVoice(settings.voiceURI) : voices.some(({ v }) => v.voiceURI === settings.voiceURI);
+  if (settings.voiceURI && known) sel.value = settings.voiceURI;
+  else { sel.value = voices.length ? voices[0].v.voiceURI : ''; settings.voiceURI = sel.value; }
   $('rate').value = settings.rate;
   $('pitch').value = settings.pitch;
   showVoiceValues();
   configure(settings);
+  if (isNeural(settings.voiceURI)) loadNatural(false);
+}
+
+// Natural voice: download (once) and load the model, showing progress.
+async function loadNatural(thenPreview) {
+  const v = neuralVoice(settings.voiceURI);
+  const status = $('voice-status');
+  if (!v) return;
+  const name = v.label.split(' · ').pop();
+  const fresh = !(await isDownloaded(v.id).catch(() => false));
+  status.textContent = fresh ? `Downloading ${name}… (${v.mb} MB, only once)` : `Loading ${name}…`;
+  try {
+    await useVoice(v.id, f => { status.textContent = `Downloading ${name}… ${Math.round(f * 100)}%`; });
+    if (settings.voiceURI !== neuralURI(v.id)) return;      // changed meanwhile
+    configure(settings);
+    status.textContent = `${name} is ready and works offline.` +
+      (v.slow ? ' It is slow: each session prepares the voice before starting.' : '');
+    if (thenPreview) preview();
+  } catch (e) {
+    status.textContent = `Could not load ${name} (${e.message}). The device voice is used instead.`;
+  }
 }
 
 function showVoiceValues() {
+  const natural = isNeural(settings.voiceURI);
+  $('pitch').disabled = natural;            // natural voices have no tone control
+  $('voice-status').hidden = !natural;
   $('rate-val').textContent = settings.rate.toFixed(2);
   $('pitch-val').textContent = settings.pitch.toFixed(2);
 }
 
 function preview() {
+  initAudio();                               // natural voices play through Web Audio
   stopSpeech();
   speakOne('Find a comfortable position, and let your breath settle.');
 }
 
 $('voice').addEventListener('change', e => {
-  settings.voiceURI = e.target.value; configure(settings); saveSettings(settings); preview();
+  initAudio();                               // inside the tap, for the preview later
+  settings.voiceURI = e.target.value; configure(settings); saveSettings(settings); showVoiceValues();
+  if (isNeural(settings.voiceURI)) loadNatural(true);
+  else preview();
+});
+$('voice-forget').addEventListener('click', async () => {
+  if (!confirm('Remove the downloaded natural voices from this device?')) return;
+  await forgetVoices();
+  if (isNeural(settings.voiceURI)) $('voice-status').textContent = 'Removed. Choose the voice again to download it.';
 });
 for (const id of ['rate', 'pitch']) {
   $(id).addEventListener('input', e => {
@@ -318,13 +356,28 @@ async function start(script, minutes) {
   document.body.classList.add('in-session');
   wake();
   await lockScreenOn();
-  player = new Player(script, { minutes, speed: TEST_SPEED, onUpdate: render });
+  player = new Player(script, { minutes, speed: TEST_SPEED, onUpdate: render, prepare: prepareVoice });
   const clock = setInterval(() => player && render({ paused: player.paused, elapsed: player.elapsed(), total: player.total }), 1000);
   try { await player.run(); } finally {
     clearInterval(clock);
     if (!player.stopped) await new Promise(r => setTimeout(r, 2500 / TEST_SPEED));
     end();
   }
+}
+
+// Natural voices synthesize the session's sentences ahead of time. Fast ones
+// keep ahead during the pauses; slow ones (Ryan) prepare everything first.
+async function prepareVoice(texts) {
+  const v = naturalVoice();
+  if (!v) return;
+  // a sentence that fails here is retried (or falls back) when it is spoken
+  const all = prepare(texts, (done, total) => {
+    if (v.slow && player) $('label').textContent = `Preparing the voice… ${Math.round((done / total) * 100)}%`;
+  }).catch(() => {});
+  if (!v.slow) return;
+  $('label').textContent = 'Preparing the voice…';
+  await all;
+  $('label').textContent = '';
 }
 
 function end() {
