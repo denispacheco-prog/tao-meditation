@@ -11,21 +11,21 @@ export const SCENES = ['water', 'wind', 'grass', 'rain', 'sand', 'light'];
 // Colours per theme. "a" scales every alpha: light backgrounds need stronger strokes.
 const PALETTES = {
   night: {
-    a: 1, glow: [200, 190, 150, 0.07],
+    a: 1.7, glow: [210, 195, 150, 0.13],
     water: [150, 195, 195], waterFill: [60, 110, 120],
     thread: [200, 205, 195], threadWarm: [215, 190, 140],
     grass: [120, 150, 100], straw: [190, 170, 110],
     rain: [175, 195, 205], sand: [215, 200, 170], stone: [5, 5, 4, 0.55]
   },
   dusk: {
-    a: 1.25, glow: [245, 215, 170, 0.1],
+    a: 1.9, glow: [245, 215, 170, 0.17],
     water: [175, 215, 220], waterFill: [95, 145, 160],
     thread: [225, 228, 225], threadWarm: [245, 210, 155],
     grass: [150, 185, 125], straw: [225, 200, 140],
     rain: [200, 218, 230], sand: [235, 222, 195], stone: [20, 24, 30, 0.45]
   },
   day: {
-    a: 2, glow: [255, 236, 190, 0.45],
+    a: 2.6, glow: [255, 230, 180, 0.6],
     water: [55, 105, 120], waterFill: [85, 140, 155],
     thread: [90, 95, 92], threadWarm: [150, 112, 55],
     grass: [80, 112, 62], straw: [150, 124, 68],
@@ -41,8 +41,11 @@ let breath = 0.5;          // 0 = empty lungs, 1 = full
 let target = null;         // null = idle (slow drift on its own)
 let speed = 1;             // how fast breath moves toward target
 let state = {};
+let glowMul = 1;          // the Glow slider (0.4–1.6)
 
-const rgba = (c, alpha) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${Math.min(1, alpha * P.a)})`;
+const rgba = (c, alpha) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${Math.min(1, alpha * P.a * glowMul)})`;
+
+export function setGlow(g) { glowMul = g || 1; draw(); }
 
 export function setScene(n) {
   name = SCENES.includes(n) ? n : 'water';
@@ -80,7 +83,7 @@ function init() {
 
 function glow(x, y, r) {
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, `rgba(${P.glow[0]}, ${P.glow[1]}, ${P.glow[2]}, ${P.glow[3]})`);
+  g.addColorStop(0, `rgba(${P.glow[0]}, ${P.glow[1]}, ${P.glow[2]}, ${Math.min(1, P.glow[3] * glowMul)})`);
   g.addColorStop(1, `rgba(${P.glow[0]}, ${P.glow[1]}, ${P.glow[2]}, 0)`);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
@@ -93,7 +96,7 @@ function drawWater() {
   for (let i = 0; i < lines; i++) {
     const depth = i / (lines - 1);
     const y0 = H * (0.38 + depth * 0.58);
-    const amp = (5 + depth * 16) * scale * (0.6 + 0.8 * breath);
+    const amp = (5 + depth * 16) * scale * (0.85 + 0.5 * breath);
     const k1 = 0.006 - depth * 0.003, k2 = 0.013 - depth * 0.006;
     ctx.beginPath();
     for (let x = -10; x <= W + 10; x += 8) {
@@ -128,7 +131,7 @@ function windAt(x, y) {
   return 22 * Math.sin(x * 0.0035 + t * 0.25 + y * 0.004) + 12 * Math.sin(y * 0.009 - t * 0.18 + x * 0.001);
 }
 function stepWind(dt) {
-  const gust = 0.55 + 0.9 * breath;
+  const gust = 0.8 + 0.6 * breath;
   for (const p of state.ps) {
     p.x += p.v * 55 * gust * dt;
     p.y += windAt(p.x, p.y) * dt;
@@ -169,7 +172,7 @@ function initGrass() {
 }
 function drawGrass() {
   glow(W * 0.3, H * 0.15, H * 0.55);
-  const strength = 0.18 + 0.32 * breath;
+  const strength = 0.26 + 0.26 * breath;
   for (const b of state.blades) {
     const gust = 0.6 * Math.sin(b.x * 0.004 - t * 0.55) + 0.25 * Math.sin(b.x * 0.013 - t * 1.05 + b.ph) + 0.25;
     const lean = strength * gust * (1.2 - b.far * 0.5);
@@ -257,7 +260,7 @@ function insideZone(x, y) {
 function drawSand() {
   glow(W * 0.75, H * 0.1, H * 0.6);
   const top = H * 0.3, gap = Math.max(9, H / 70);
-  const wobble = 1 + 1.8 * breath;
+  const wobble = 1.4 + 1.2 * breath;
   ctx.lineWidth = 1;
   // raked lines, broken where they meet a stone's rings
   for (let y0 = top, i = 0; y0 < H + gap; y0 += gap, i++) {

@@ -4,7 +4,7 @@ import { configure, speakOne, stopSpeech, prepare, naturalVoice } from './speech
 import { NEURAL_VOICES, neuralURI, neuralVoice, useVoice, isDownloaded, forgetVoices, pruneVoices } from './neural.js';
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
-import { setScene, setBreath, setTheme, SCENES } from './scene.js';
+import { setScene, setBreath, setTheme, setGlow, SCENES } from './scene.js';
 import { pickPassage, rememberChapters } from './tao.js';
 import { getChapter } from './store.js';
 import { startAmbience, stopAmbience, setAmbienceVolume, duck, pauseAmbience } from './ambience.js';
@@ -13,7 +13,7 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, mode: 'practice', picked: {}, ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, mode: 'practice', picked: {}, glow: 1, ...loadSettings() };
 if (!settings.picked) settings.picked = {};
 let scripts = [];
 let pools = {};
@@ -82,7 +82,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------- theme ----------
-const THEME_BG = { day: '#ede7da', dusk: '#2a2f37', night: '#0f0e0b' };
+const THEME_BG = { day: '#ede7da', dusk: '#3a414b', night: '#1b1a16' };
 function showTheme() {
   if (!THEME_BG[settings.theme]) settings.theme = 'day';
   document.documentElement.dataset.theme = settings.theme;
@@ -94,6 +94,15 @@ function showTheme() {
 document.querySelectorAll('#theme-choice button').forEach(b => b.addEventListener('click', () => {
   settings.theme = b.dataset.themeName; saveSettings(settings); showTheme();
 }));
+
+function showGlow() {
+  $('glow').value = settings.glow;
+  document.documentElement.style.setProperty('--glow', settings.glow);
+  setGlow(settings.glow);
+}
+$('glow').addEventListener('input', e => {
+  settings.glow = Number(e.target.value); saveSettings(settings); showGlow();
+});
 
 // ---------- scene ----------
 function showScene() {
@@ -296,20 +305,20 @@ function fmt(sec) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
-function breathe(inhaling, seconds) {
+function breathe(inhaling, seconds, scene = true) {
   const c = $('circle');
   const lights = $('lights');
   c.style.transitionDuration = seconds + 's';
   lights.style.transitionDuration = `3s, ${seconds}s`;
   c.classList.toggle('in', inhaling);
   document.body.classList.toggle('inhale', inhaling);
-  setBreath(inhaling, seconds);
+  setBreath(scene ? inhaling : null, seconds);   // null: the scene drifts on its own
 }
 
 function render(state) {
   if (state.phase === 'inhale') breathe(true, state.seconds);
   else if (state.phase === 'exhale') breathe(false, state.seconds);
-  else if (state.phase && state.phase !== 'hold') breathe(false, 3);
+  else if (state.phase && state.phase !== 'hold') breathe(false, 3, false);
   if (state.phase) duck(state.phase === 'speak' || state.phase === 'tao');
   if ('label' in state) $('label').textContent = state.phase === 'done' ? '' : state.label;
   $('remaining').textContent = state.paused ? 'paused' : fmt(state.total - state.elapsed);
@@ -433,6 +442,7 @@ $('stop').addEventListener('click', () => { if (player) player.stop(); });
 // ---------- boot ----------
 $('shuffle').checked = settings.shuffle;
 showTheme();
+showGlow();
 showScene();
 showAmbience();
 refreshBook();

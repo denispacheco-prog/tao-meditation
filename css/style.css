@@ -1,42 +1,42 @@
 /* Three themes: day (light paper), dusk (soft slate), night (deep dark). */
 :root, [data-theme="night"] {
-  --bg: #0f0e0b;
-  --ink: #e6e0cf;
-  --muted: #8a846f;
-  --faint: #4d493d;
+  --bg: #1b1a16;
+  --ink: #e9e3d2;
+  --muted: #958e78;
+  --faint: #5d5849;
   --line: rgba(230, 224, 207, 0.12);
   --accent: #d2b47a;
   --accent-soft: rgba(210, 180, 122, 0.4);
-  --sheet: #16140f;
+  --sheet: #23211c;
   --backdrop: rgba(0, 0, 0, 0.6);
   --session-ink: #6d6758;
   --label: #8a826c;
   --circle-1: rgba(210, 180, 122, 0.22);
   --circle-2: rgba(210, 180, 122, 0.06);
-  --l1: rgba(210, 160, 90, 0.16);
-  --l2: rgba(90, 140, 140, 0.13);
-  --l3: rgba(170, 100, 110, 0.12);
-  --card: rgba(15, 14, 11, 0.45);
+  --l1: rgba(220, 165, 90, 0.42);
+  --l2: rgba(95, 150, 150, 0.36);
+  --l3: rgba(180, 105, 115, 0.32);
+  --card: rgba(27, 26, 22, 0.45);
   --font: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
 }
 [data-theme="dusk"] {
-  --bg: #2a2f37;
-  --ink: #eeeae0;
-  --muted: #aaa79d;
-  --faint: #767b84;
+  --bg: #3a414b;
+  --ink: #f1ede4;
+  --muted: #b5b2a8;
+  --faint: #878c95;
   --line: rgba(238, 234, 224, 0.16);
   --accent: #e3c48c;
   --accent-soft: rgba(227, 196, 140, 0.45);
-  --sheet: #323843;
+  --sheet: #444b57;
   --backdrop: rgba(10, 12, 16, 0.5);
   --session-ink: #8e9299;
   --label: #bdb8aa;
   --circle-1: rgba(235, 205, 150, 0.26);
   --circle-2: rgba(235, 205, 150, 0.07);
-  --l1: rgba(235, 185, 120, 0.22);
-  --l2: rgba(120, 175, 180, 0.2);
-  --l3: rgba(200, 130, 140, 0.18);
-  --card: rgba(42, 47, 55, 0.5);
+  --l1: rgba(240, 190, 120, 0.48);
+  --l2: rgba(125, 185, 190, 0.44);
+  --l3: rgba(210, 135, 145, 0.4);
+  --card: rgba(58, 65, 75, 0.5);
 }
 [data-theme="day"] {
   --bg: #ede7da;
@@ -52,9 +52,9 @@
   --label: #6f6655;
   --circle-1: rgba(190, 140, 60, 0.26);
   --circle-2: rgba(190, 140, 60, 0.07);
-  --l1: rgba(235, 170, 90, 0.35);
-  --l2: rgba(110, 165, 170, 0.3);
-  --l3: rgba(210, 140, 150, 0.28);
+  --l1: rgba(240, 170, 85, 0.62);
+  --l2: rgba(105, 165, 172, 0.52);
+  --l3: rgba(215, 135, 148, 0.5);
   --card: rgba(246, 241, 231, 0.55);
 }
 
@@ -69,6 +69,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   transition: opacity 3s ease, transform 4s ease-in-out;
 }
 #lights i {
+  opacity: calc(var(--glow, 1) / 1.6);
   position: absolute; width: 90vmax; height: 90vmax; border-radius: 50%;
   will-change: transform;
   animation: drift 50s ease-in-out infinite alternate;
@@ -97,10 +98,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #scene { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; transition: opacity 3s ease; }
 body[data-scene="light"] #scene { display: none; }
 body:not([data-scene="light"]) #lights { display: none; }
-body.in-session #scene { opacity: 0.7; }
 
 /* during a session the lights dim and follow the breath */
-body.in-session #lights { opacity: 0.55; }
+body.in-session #lights { opacity: 0.85; }
 body.in-session.inhale #lights { opacity: 1; transform: scale(1.12); }
 
 @media (prefers-reduced-motion: reduce) {
