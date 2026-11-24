@@ -5,7 +5,10 @@ import { NEURAL_VOICES, neuralURI, neuralVoice, useVoice, isDownloaded, forgetVo
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
 import { setScene, setBreath, setTheme, setGlow, SCENES } from './scene.js';
-import { pickPassage, rememberChapters } from './tao.js';
+import { pickPassage, rememberChapters, dailyVerse } from './tao.js';
+import { dayNumber } from './player.js';
+import { logSession, setMood, lastDays, monthSummary, savedVerses, isSaved, toggleSaved } from './journal.js';
+import { journeyScript, JOURNEY_DURATIONS, timerScript, TIMER_DURATIONS, TIMER_INTERVALS } from './routines.js';
 import { getChapter } from './store.js';
 import { startAmbience, stopAmbience, setAmbienceVolume, duck, pauseAmbience } from './ambience.js';
 
@@ -13,8 +16,10 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, mode: 'practice', picked: {}, glow: 1, ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, mode: 'practice', picked: {}, glow: 1, journey: { ch: 1, read: [] }, timerEvery: 5, ...loadSettings() };
 if (!settings.picked) settings.picked = {};
+if (!settings.journey || !Array.isArray(settings.journey.read)) settings.journey = { ch: 1, read: [] };
+let bookLoaded = false;
 let scripts = [];
 let pools = {};
 let player = null;
@@ -29,6 +34,9 @@ async function refreshBook() {
   $('book-remove').hidden = !n;
   $('book-load').querySelector('span').textContent = n ? 'Replace EPUB' : 'Load EPUB';
   $('book-hint').hidden = !!n;
+  bookLoaded = !!n;
+  showDaily();
+  if (scripts.length) renderHome();
 }
 
 $('book-file').addEventListener('change', async e => {
@@ -228,7 +236,8 @@ for (const id of ['rate', 'pitch']) {
 }
 $('voice-test').addEventListener('click', preview);
 
-// ---------- sessions ----------
+// ---------- home: modes ----------
+// practice and after training show cards; journey walks the 81 chapters; timer is silence with bells.
 const modeOf = s => s.mode || 'practice';
 const inMode = () => scripts.filter(s => modeOf(s) === settings.mode);
 const current = () => inMode().find(s => s.id === settings.picked[settings.mode]) ||
@@ -250,15 +259,29 @@ const chosenMinutes = s => {
   const m = settings.minutes[s.id];
   return s.durations.includes(m) ? m : s.defaultDuration;
 };
+const pickedFrom = (list, value, fallback) => (list.includes(value) ? value : fallback);
 
 async function loadSessions() {
   const files = await fetch('sessions/index.json').then(r => r.json());
   scripts = await Promise.all(files.map(f => fetch('sessions/' + f).then(r => r.json())));
   pools = await fetch('sessions/pools.json').then(r => r.json()).catch(() => ({}));
-  renderSessions();
+  renderHome();
 }
 
-function renderSessions() {
+function renderHome() {
+  const mode = settings.mode;
+  const cards = mode === 'practice' || mode === 'after';
+  $('sessions').hidden = !cards;
+  $('journey-panel').hidden = mode !== 'journey';
+  $('timer-panel').hidden = mode !== 'timer';
+  document.querySelectorAll('.modes button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  if (cards) renderCards();
+  else if (mode === 'journey') renderJourney();
+  else renderTimer();
+}
+
+function renderCards() {
   const sel = current();
   const list = $('sessions');
   list.innerHTML = '';
@@ -270,34 +293,163 @@ function renderSessions() {
     b.innerHTML = icon(s.icon) + '<span></span>';
     b.querySelector('span').textContent = s.short || s.title;
     b.addEventListener('click', () => {
-      settings.picked[settings.mode] = s.id; saveSettings(settings); renderSessions();
+      settings.picked[settings.mode] = s.id; saveSettings(settings); renderHome();
     });
     list.appendChild(b);
   }
   $('session-name').textContent = sel ? sel.title : '';
-  document.querySelectorAll('.modes button').forEach(b =>
-    b.setAttribute('aria-pressed', String(b.dataset.mode === settings.mode)));
-  renderDurations();
+  if (sel) renderDurations(sel.durations, chosenMinutes(sel), m => { settings.minutes[sel.id] = m; });
+}
+
+function renderJourney() {
+  const j = settings.journey;
+  $('j-ch').textContent = `Chapter ${j.ch}`;
+  $('j-sub').textContent = bookLoaded
+    ? `${j.read.length} of 81 read${j.read.includes(j.ch) ? ' · read before' : ''}`
+    : 'load the book (⚙) to begin';
+  $('session-name').textContent = '';
+  renderDurations(JOURNEY_DURATIONS, pickedFrom(JOURNEY_DURATIONS, settings.minutes.journey, 5),
+    m => { settings.minutes.journey = m; });
+}
+$('j-prev').addEventListener('click', () => { settings.journey.ch = (settings.journey.ch + 79) % 81 + 1; saveSettings(settings); renderJourney(); });
+$('j-next').addEventListener('click', () => { settings.journey.ch = settings.journey.ch % 81 + 1; saveSettings(settings); renderJourney(); });
+
+// After a chapter is read to the end: mark it, and move on to the next unread one.
+function chapterRead(ch) {
+  const j = settings.journey;
+  if (!j.read.includes(ch)) j.read.push(ch);
+  let next = ch % 81 + 1;
+  for (let k = 0; k < 81 && j.read.includes(next) && j.read.length < 81; k++) next = next % 81 + 1;
+  j.ch = next;
+  saveSettings(settings);
+}
+
+function renderTimer() {
+  const every = pickedFrom(TIMER_INTERVALS, settings.timerEvery, 5);
+  const box = $('interval-choice');
+  box.innerHTML = TIMER_INTERVALS.map(i =>
+    `<button type="button" data-every="${i}" aria-pressed="${i === every}">${i ? i + ' min' : 'none'}</button>`).join('');
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    settings.timerEvery = Number(b.dataset.every); saveSettings(settings); renderTimer();
+  }));
+  $('session-name').textContent = every ? `Silence, with a bell every ${every} minutes` : 'Silence, with a bell at the start and the end';
+  renderDurations(TIMER_DURATIONS, pickedFrom(TIMER_DURATIONS, settings.minutes.timer, 10),
+    m => { settings.minutes.timer = m; });
 }
 
 document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
-  settings.mode = b.dataset.mode; saveSettings(settings); renderSessions();
+  settings.mode = b.dataset.mode; saveSettings(settings); renderHome();
 }));
 
-function renderDurations() {
-  const s = current();
-  const chosen = chosenMinutes(s);
+function renderDurations(list, chosen, onPick) {
   const box = $('durations');
-  box.innerHTML = s.durations.map(m =>
+  box.innerHTML = list.map(m =>
     `<button class="dur" data-min="${m}" aria-pressed="${m === chosen}">${m}<small>min</small></button>`).join('');
   box.querySelectorAll('.dur').forEach(b => b.addEventListener('click', () => {
-    settings.minutes[s.id] = Number(b.dataset.min);
+    onPick(Number(b.dataset.min));
     saveSettings(settings);
-    renderDurations();
+    renderHome();
   }));
 }
 
-$('begin').addEventListener('click', () => { const s = current(); if (s) start(s, chosenMinutes(s)); });
+$('begin').addEventListener('click', () => {
+  const mode = settings.mode;
+  if (mode === 'journey') {
+    if (!bookLoaded) { sheet.showModal(); return; }
+    const ch = settings.journey.ch;
+    start(journeyScript(ch), pickedFrom(JOURNEY_DURATIONS, settings.minutes.journey, 5), () => chapterRead(ch));
+  } else if (mode === 'timer') {
+    const m = pickedFrom(TIMER_DURATIONS, settings.minutes.timer, 10);
+    start(timerScript(m, pickedFrom(TIMER_INTERVALS, settings.timerEvery, 5)), m);
+  } else {
+    const s = current();
+    if (s) start(s, chosenMinutes(s));
+  }
+});
+
+// ---------- verse of the day ----------
+let daily = null;
+async function showDaily() {
+  daily = bookLoaded ? await dailyVerse(dayNumber(), getChapter).catch(() => null) : null;
+  const box = $('daily');
+  box.hidden = !daily;
+  if (!daily) return;
+  const text = $('daily-text');
+  text.innerHTML = '';
+  for (const line of daily.lines) { const el = document.createElement('span'); el.textContent = line; text.appendChild(el); }
+  $('daily-ch').textContent = String(daily.chapter);
+  $('daily-fav').setAttribute('aria-pressed', String(isSaved(daily.chapter, daily.lines)));
+}
+$('daily-fav').addEventListener('click', () => {
+  if (!daily) return;
+  $('daily-fav').setAttribute('aria-pressed', String(toggleSaved(daily.chapter, daily.lines)));
+});
+
+// ---------- journal ----------
+function renderWeek() {
+  const days = lastDays(7);
+  $('open-journal').innerHTML = days.map(d => `<i class="${d.minutes > 0 ? 'on' : ''}"></i>`).join('');
+  const done = days.filter(d => d.minutes > 0).length;
+  $('open-journal').setAttribute('aria-label', `Journal: practised on ${done} of the last 7 days`);
+}
+
+const journal = $('journal');
+let shownMonth = null;
+$('open-journal').addEventListener('click', () => {
+  const now = new Date();
+  shownMonth = { y: now.getFullYear(), m: now.getMonth() };
+  renderMonth(); renderSaved();
+  journal.showModal();
+});
+journal.addEventListener('click', e => { if (e.target === journal) journal.close(); });
+$('m-prev').addEventListener('click', () => { shiftMonth(-1); });
+$('m-next').addEventListener('click', () => { shiftMonth(1); });
+function shiftMonth(k) {
+  const d = new Date(shownMonth.y, shownMonth.m + k, 1);
+  shownMonth = { y: d.getFullYear(), m: d.getMonth() };
+  renderMonth();
+}
+
+function renderMonth() {
+  const { y, m } = shownMonth;
+  const sum = monthSummary(y, m);
+  $('m-title').textContent = new Date(y, m, 1).toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  const first = (new Date(y, m, 1).getDay() + 6) % 7;            // weeks start on Monday
+  const count = new Date(y, m + 1, 0).getDate();
+  let html = '<small>M</small><small>T</small><small>W</small><small>T</small><small>F</small><small>S</small><small>S</small>';
+  html += '<span></span>'.repeat(first);
+  for (let d = 1; d <= count; d++) {
+    const min = sum.days[d] || 0;
+    const size = min ? Math.round(7 + Math.min(min, 30) / 30 * 13) : 0;
+    html += min ? `<span title="${d}: ${Math.round(min)} min"><i style="width:${size}px;height:${size}px"></i></span>`
+      : `<span title="${d}"><i class="none"></i></span>`;
+  }
+  $('m-grid').innerHTML = html;
+  const moods = Object.entries(sum.moods).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(' · ');
+  $('m-stats').textContent = sum.sessions
+    ? `${sum.sessions} session${sum.sessions > 1 ? 's' : ''} · ${sum.minutes} min${moods ? ' · felt: ' + moods : ''}`
+    : 'Nothing yet this month.';
+}
+
+function renderSaved() {
+  const list = $('saved-list');
+  const items = savedVerses();
+  list.innerHTML = items.length ? '' : '<p class="note">Tap ♡ on a verse to keep it here.</p>';
+  for (const v of items) {
+    const item = document.createElement('div');
+    item.className = 'item';
+    const q = document.createElement('blockquote');
+    for (const line of v.lines) { const el = document.createElement('span'); el.textContent = line; q.appendChild(el); }
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = `<span>${v.ch}</span><button type="button" class="link">remove</button>`;
+    meta.querySelector('button').addEventListener('click', () => {
+      toggleSaved(v.ch, v.lines); renderSaved(); showDaily();
+    });
+    item.append(q, meta);
+    list.appendChild(item);
+  }
+}
 
 // ---------- session screen ----------
 function fmt(sec) {
@@ -341,7 +493,7 @@ document.addEventListener('visibilitychange', () => {
   if (player && document.visibilityState === 'visible') lockScreenOn();
 });
 
-async function start(script, minutes) {
+async function start(script, minutes, onFinish = null) {
   initAudio();                       // must happen inside the tap
   stopSpeech();
   stopPreview();
@@ -358,12 +510,33 @@ async function start(script, minutes) {
   let finished = false;
   try { await player.run(); finished = !player.stopped; } finally {
     clearInterval(clock);
+    // a session counts once a minute of it has been done (or it ran to the end)
+    const practised = player.elapsed() / 60;
+    const entry = finished || practised >= 1 ? logSession({ id: script.id, minutes: practised }) : null;
     if (finished) {
       await new Promise(r => setTimeout(r, 2500 / TEST_SPEED));
-      await showPassage(script, player.chapters);
+      if (script.closing !== 'none') await showPassage(script, player.chapters);
+      if (entry !== null) await askMood(entry);
+      if (onFinish) onFinish();
     }
     end();
+    renderWeek();
+    renderHome();
   }
+}
+
+// One tap to note how the session left you (or skip).
+async function askMood(entry) {
+  const box = $('mood');
+  box.hidden = false;
+  $('session').classList.add('reading');
+  const mood = await new Promise(resolve => {
+    box.onclick = e => { const b = e.target.closest('button'); if (b) resolve(b.dataset.mood); };
+  });
+  box.onclick = null;
+  if (mood) setMood(entry, mood);
+  box.hidden = true;
+  $('session').classList.remove('reading');
 }
 
 // After a session that ran to the end: a short passage to read, gently moving,
@@ -385,6 +558,12 @@ async function showPassage(script, used) {
   const chapter = box.querySelector('.chapter');
   chapter.textContent = String(p.chapter);
   chapter.style.animationDelay = `${1.5 + p.lines.length * 1.1}s`;
+  const fav = $('passage-fav');
+  fav.setAttribute('aria-pressed', String(isSaved(p.chapter, p.lines)));
+  fav.onclick = e => {                       // saving does not close the passage
+    e.stopPropagation();
+    fav.setAttribute('aria-pressed', String(toggleSaved(p.chapter, p.lines)));
+  };
   box.classList.remove('leaving', 'settled');
   box.hidden = false;
   $('session').classList.add('reading');
@@ -445,6 +624,7 @@ showTheme();
 showGlow();
 showScene();
 showAmbience();
+renderWeek();
 refreshBook();
 setupVoice();
 loadSessions();

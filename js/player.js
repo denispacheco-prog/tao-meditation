@@ -116,7 +116,8 @@ export class Player {
         const ch = await getChapter(s.chapter).catch(() => null);
         if (ch) {
           const wanted = s.stanzas || ch.stanzas.map((_, i) => i + 1);
-          lines = wanted.flatMap(i => ch.stanzas[i - 1] || []);
+          // with "stanzaGap", an empty line marks a pause between stanzas
+          lines = wanted.flatMap((i, k) => [...(k && s.stanzaGap ? [''] : []), ...(ch.stanzas[i - 1] || [])]);
           this.chapters.push(s.chapter);
         }
       }
@@ -133,7 +134,7 @@ export class Player {
     const out = [];
     for (const s of this.steps) {
       if (s.type === 'speak') out.push(this.textOf(s));
-      else if (s.type === 'tao') out.push(...this.taoLines(s));
+      else if (s.type === 'tao') out.push(...this.taoLines(s).filter(Boolean));
       else if (s.type === 'breath') {
         if (s.cues) out.push('In', 'Hold', 'Out', ...(s.pattern.inhale2 ? ['And in'] : []));
         const voiced = s.count && s.count.voiced && s.count.voiced !== 'none';
@@ -150,7 +151,7 @@ export class Player {
       case 'bell': return (step.strikes || 1) * BELL_SECONDS;
       case 'tao': {
         const lines = this.taoLines(step);
-        return lines.reduce((t, l) => t + estimate(l), 0) + lines.length * (step.lineGap ?? 1);
+        return lines.reduce((t, l) => t + (l ? estimate(l) + (step.lineGap ?? 1) : step.stanzaGap || 0), 0);
       }
       case 'breath': return step.fill ? this.minBreath(step) : step.seconds || 0;
       default: return 0;
@@ -214,6 +215,7 @@ export class Player {
     const lines = this.taoLines(step);
     if (!lines.length) return;           // book not loaded: skip quietly
     for (const line of lines) {
+      if (!line) { this.emit({ phase: 'tao', label: '' }); await this.wait(step.stanzaGap || 0); continue; }
       await this.say(line, '');
       this.emit({ phase: 'tao', label: '' });
       await this.wait(step.lineGap ?? 1);

@@ -16,15 +16,36 @@
   <main id="home">
     <header>
       <h1>Tao</h1>
-      <button class="icon" id="open-settings" aria-label="Settings">
+      <div class="header-right">
+        <button class="week" id="open-journal" aria-label="Journal: the last seven days"></button>
+        <button class="icon" id="open-settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/>
           <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>
         </svg>
-      </button>
+        </button>
+      </div>
     </header>
 
+    <figure id="daily" hidden>
+      <blockquote id="daily-text"></blockquote>
+      <figcaption><span id="daily-ch"></span>
+        <button class="heart" id="daily-fav" aria-label="Save this verse" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+      </figcaption>
+    </figure>
+
     <div id="sessions" class="cards" role="group" aria-label="Practices"></div>
+    <div id="journey-panel" class="panel" hidden>
+      <div class="journey-nav">
+        <button class="arrow" id="j-prev" aria-label="Previous chapter">‹</button>
+        <div><p id="j-ch"></p><p id="j-sub"></p></div>
+        <button class="arrow" id="j-next" aria-label="Next chapter">›</button>
+      </div>
+    </div>
+    <div id="timer-panel" class="panel" hidden>
+      <p class="sub-label">bell every</p>
+      <div class="choices" id="interval-choice" role="group" aria-label="Bell interval"></div>
+    </div>
     <p id="session-name" aria-live="polite"></p>
 
     <div class="go">
@@ -36,6 +57,10 @@
 
     <nav class="modes" role="group" aria-label="Mode">
       <button data-mode="practice">practice</button>
+      <span aria-hidden="true">·</span>
+      <button data-mode="journey">journey</button>
+      <span aria-hidden="true">·</span>
+      <button data-mode="timer">timer</button>
       <span aria-hidden="true">·</span>
       <button data-mode="after">after training</button>
     </nav>
@@ -132,6 +157,25 @@
     </form>
   </dialog>
 
+  <dialog id="journal">
+    <form method="dialog" class="sheet">
+      <section>
+        <div class="month-head">
+          <button type="button" class="arrow" id="m-prev" aria-label="Previous month">‹</button>
+          <h2 id="m-title"></h2>
+          <button type="button" class="arrow" id="m-next" aria-label="Next month">›</button>
+        </div>
+        <div class="month" id="m-grid"></div>
+        <p class="note" id="m-stats"></p>
+      </section>
+      <section>
+        <h2>Saved verses</h2>
+        <div id="saved-list"></div>
+      </section>
+      <div class="links end"><button class="link" value="close">Close</button></div>
+    </form>
+  </dialog>
+
   <div id="session" hidden>
     <div class="breath-wrap"><div id="circle"></div></div>
     <p id="label"></p>
@@ -144,7 +188,17 @@
     <div id="passage" hidden>
       <div class="verses"></div>
       <p class="chapter"></p>
+      <button class="heart" id="passage-fav" aria-label="Save this verse" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
       <p class="close-hint">tap to close</p>
+    </div>
+    <div id="mood" hidden>
+      <p>how do you feel?</p>
+      <div class="mood-choices">
+        <button data-mood="calm">calm</button>
+        <button data-mood="neutral">neutral</button>
+        <button data-mood="tense">tense</button>
+      </div>
+      <button class="link skip" data-mood="">skip</button>
     </div>
   </div>
 

@@ -54,3 +54,16 @@ export async function pickPassage(theme, { maxLines = 8, exclude = [], getChapte
   }
   return null;
 }
+
+// A short verse (2–4 lines) for a given day, the same all day long.
+// Returns { chapter, lines } or null without the book.
+export async function dailyVerse(day, getChapter) {
+  for (let k = 0; k < 81; k++) {
+    const n = ((day * 29 + k * 7) % 81 + 81) % 81 + 1;
+    const ch = await getChapter(n).catch(() => null);
+    if (!ch) { if (k === 0) return null; continue; }
+    const options = (ch.stanzas || []).filter(st => st.length >= 2 && st.length <= 4);
+    if (options.length) return { chapter: n, lines: options[((day % options.length) + options.length) % options.length] };
+  }
+  return null;
+}

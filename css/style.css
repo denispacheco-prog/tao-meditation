@@ -227,7 +227,6 @@ select {
 }
 #passage[hidden] { display: none; }
 #passage.leaving { animation: fade-out 1.2s ease both; }
-#session.reading > :not(#passage) { opacity: 0; pointer-events: none; transition: opacity 1.5s ease; }
 .verses { max-width: 26rem; }
 .verses p {
   margin: 0; font-size: 1.22rem; line-height: 1.75; color: var(--ink);
@@ -246,3 +245,57 @@ select {
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .verses p { animation: verse-in 1.6s ease forwards; } }
+
+/* ---------- journal, verse of the day, journey, timer, mood ---------- */
+header { margin-bottom: 1.6rem; }
+.header-right { display: flex; align-items: center; gap: 0.2rem; }
+.week { display: flex; gap: 5px; align-items: center; min-height: 44px; padding: 0 0.6rem; }
+.week i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background 0.4s; }
+.week i.on { background: var(--accent); }
+
+#daily { margin: 0 0 1.4rem; text-align: center; }
+#daily[hidden] { display: none; }
+#daily blockquote { margin: 0; font-style: italic; color: var(--ink); opacity: 0.85; line-height: 1.6; font-size: 1rem; }
+#daily blockquote span { display: block; }
+#daily figcaption { display: flex; align-items: center; justify-content: center; gap: 0.2rem; color: var(--faint); font-size: 0.75rem; letter-spacing: 0.2em; margin-top: 0.3rem; }
+.heart { width: 40px; height: 40px; display: grid; place-items: center; color: var(--faint); }
+.heart path { fill: none; stroke: currentColor; stroke-width: 1.4; transition: fill 0.3s; }
+.heart[aria-pressed="true"] { color: var(--accent); }
+.heart[aria-pressed="true"] path { fill: currentColor; }
+#passage .heart { margin-top: 0.6rem; opacity: 0; animation: verse-in 2s ease 3s forwards; }
+
+.card { aspect-ratio: 1.5; }
+.panel { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.panel[hidden] { display: none; }
+.journey-nav { display: flex; align-items: center; justify-content: space-between; text-align: center; }
+.arrow { width: 48px; height: 48px; font-size: 1.6rem; color: var(--muted); }
+#j-ch { margin: 0; font-size: 1.7rem; letter-spacing: 0.06em; }
+#j-sub { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.85rem; font-style: italic; }
+#timer-panel .choices { margin: 0; }
+
+.month-head { display: flex; align-items: center; justify-content: space-between; }
+.month-head h2 { margin: 0; }
+.month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.35rem; margin: 0.8rem 0 1rem; }
+.month span { aspect-ratio: 1; display: grid; place-items: center; }
+.month i { display: block; border-radius: 50%; background: var(--accent); }
+.month i.none { width: 5px; height: 5px; background: var(--line); }
+.month small { color: var(--faint); font-size: 0.65rem; }
+#saved-list blockquote { margin: 0 0 0.4rem; font-style: italic; line-height: 1.55; }
+#saved-list blockquote span { display: block; }
+#saved-list .item { padding: 0.8rem 0; border-top: 1px solid var(--line); }
+#saved-list .meta { display: flex; justify-content: space-between; align-items: center; color: var(--faint); font-size: 0.75rem; letter-spacing: 0.15em; }
+
+#mood {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.2rem; animation: fade-in 1.5s ease both;
+}
+#mood[hidden] { display: none; }
+#mood p { margin: 0; color: var(--muted); letter-spacing: 0.12em; }
+.mood-choices { display: flex; gap: 0.6rem; }
+.mood-choices button {
+  min-width: 5.5rem; min-height: 48px; border: 1px solid var(--line); border-radius: 999px;
+  color: var(--ink); background: var(--card); letter-spacing: 0.08em;
+}
+#mood .skip { color: var(--faint); }
+#session.reading > :not(#passage):not(#mood) { opacity: 0; pointer-events: none; transition: opacity 1.5s ease; }
+.modes { flex-wrap: wrap; row-gap: 0; }
