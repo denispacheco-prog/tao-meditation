@@ -24,7 +24,7 @@ self.onmessage = async ({ data: m }) => {
       }
       self.postMessage({ id: m.id });
     } else if (m.type === 'synth') {
-      const { pcm, sampleRate } = await p.synth(m.text, m.slow);
+      const { pcm, sampleRate } = await p.synth(m.text, m.slow, { noise: m.noise, w: m.w });
       self.postMessage({ id: m.id, pcm, sampleRate }, [pcm.buffer]);
     }
   } catch (e) {

@@ -24,11 +24,21 @@
       </button>
     </header>
 
-    <ul id="sessions" role="list"></ul>
+    <div id="sessions" class="cards" role="group" aria-label="Practices"></div>
+    <p id="session-name" aria-live="polite"></p>
 
-    <div id="durations" role="group" aria-label="Duration"></div>
+    <div class="go">
+      <div id="durations" role="group" aria-label="Duration"></div>
+      <button class="begin" id="begin" aria-label="Begin">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 6.5v11l8.5-5.5z" fill="currentColor"/></svg>
+      </button>
+    </div>
 
-    <button class="begin" id="begin">Begin</button>
+    <nav class="modes" role="group" aria-label="Mode">
+      <button data-mode="practice">practice</button>
+      <span aria-hidden="true">·</span>
+      <button data-mode="after">after training</button>
+    </nav>
     <p class="hint" id="book-hint" hidden>No book loaded · sessions run without the Tao passages</p>
   </main>
 
@@ -101,9 +111,7 @@
 
       <section id="voice-section">
         <h2>Voice</h2>
-        <label>Voice
-          <select id="voice"></select>
-        </label>
+        <div class="choices" id="voice-choice" role="group" aria-label="Voice"></div>
         <label>Speed <span id="rate-val"></span>
           <input type="range" id="rate" min="0.6" max="1.1" step="0.05">
         </label>
@@ -113,9 +121,8 @@
         <p class="note" id="voice-status" hidden></p>
         <div class="links"><button type="button" class="link" id="voice-test">Listen</button>
           <button type="button" class="link" id="voice-forget">Remove natural voices</button></div>
-        <p class="note">Natural voices run on this device: the model downloads once, the text never
-          leaves the phone. The others come from the device; on Android, more can be added in
-          Settings → Text-to-speech → Google → Install voice data → English.</p>
+        <p class="note">Both voices run on this device: each downloads once (63 MB) and then works
+          offline; the text never leaves the phone. Until a voice is ready, the phone's own voice is used.</p>
       </section>
 
       <div class="links end"><button class="link" value="close">Close</button></div>
@@ -130,6 +137,11 @@
       <button class="link" id="pause">pause</button>
       <span class="dot">·</span>
       <button class="link" id="stop">end</button>
+    </div>
+    <div id="passage" hidden>
+      <div class="verses"></div>
+      <p class="chapter"></p>
+      <p class="close-hint">tap to close</p>
     </div>
   </div>
 

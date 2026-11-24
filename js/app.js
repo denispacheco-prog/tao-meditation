@@ -1,18 +1,22 @@
 import { importEpub } from './epub.js';
 import { saveChapters, countChapters, clearBook, askPersistence, loadSettings, saveSettings } from './store.js';
-import { listVoices, configure, speakOne, stopSpeech, speechAvailable, prepare, naturalVoice } from './speech.js';
-import { NEURAL_VOICES, neuralURI, isNeural, neuralVoice, useVoice, isDownloaded, forgetVoices } from './neural.js';
+import { configure, speakOne, stopSpeech, prepare, naturalVoice } from './speech.js';
+import { NEURAL_VOICES, neuralURI, neuralVoice, useVoice, isDownloaded, forgetVoices, pruneVoices } from './neural.js';
 import { initAudio } from './audio.js';
 import { Player } from './player.js';
 import { setScene, setBreath, setTheme, SCENES } from './scene.js';
+import { pickPassage, rememberChapters } from './tao.js';
+import { getChapter } from './store.js';
 import { startAmbience, stopAmbience, setAmbienceVolume, duck, pauseAmbience } from './ambience.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TEST_SPEED = Math.max(1, Number(params.get('fast')) || 1);   // e.g. ?fast=20 for testing
 
-let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, ...loadSettings() };
+let settings = { rate: 0.85, pitch: 1, voiceURI: '', minutes: {}, session: '', scene: 'water', ambience: 'nature', ambienceVolume: 0.5, music: 'vary', theme: 'day', shuffle: true, mode: 'practice', picked: {}, ...loadSettings() };
+if (!settings.picked) settings.picked = {};
 let scripts = [];
+let pools = {};
 let player = null;
 let wakeLock = null;
 
@@ -146,85 +150,51 @@ $('amb-test').addEventListener('click', () => previewing ? stopPreview() : previ
 sheet.addEventListener('close', stopPreview);
 
 // ---------- voice ----------
-const REGIONS = {
-  US: 'American', GB: 'British', AU: 'Australian', IN: 'Indian', IE: 'Irish',
-  ZA: 'South African', NZ: 'New Zealand', CA: 'Canadian', NG: 'Nigerian', SG: 'Singapore'
-};
-
-// The Web Speech API does not say whether a voice is male or female,
-// so guess from well-known voice names and Google's Android voice codes.
-const FEMALE = /\b(female|woman|zira|aria|jenny|hazel|susan|samantha|karen|moira|tessa|libby|sonia|natasha|clara|emma|michelle|ava|allison|serena|victoria|fiona|veena|kate|catherine|heera|neerja|joanna|salli|kimberly|ivy|amy|olivia|ana|emily|sara|nicky|martha|isla|maisie|linda|heather)\b|-x-(sfg|tpf|tpc|iob|iog|gba|gbc|gbg|fis|aua|aub|enc|ahp|cxx)\b/i;
-const MALE = /\b(male|man|david|mark|guy|ryan|george|daniel|james|thomas|brian|christopher|eric|roger|steffan|william|liam|aaron|fred|alex|tom|oliver|arthur|rishi|gordon|lee|ravi|prabhat|matthew|joey|justin|kevin|russell|reed|eddy)\b|-x-(tpd|iom|iol|gbb|gbd|rjs|aud|auc|end)\b/i;
-function voiceGender(v) {
-  const s = `${v.name} ${v.voiceURI}`;
-  if (FEMALE.test(s)) return 'Female';
-  if (MALE.test(s)) return 'Male';
-  return 'Other';
-}
-
-function voiceLabel(v) {
-  const region = REGIONS[(v.lang.split(/[-_]/)[1] || '').toUpperCase()] || v.lang;
-  const name = v.name.replace(/^(Microsoft|Google|Apple)\s+/i, '').replace(/\s*\(.*\)\s*$/, '')
-    .replace(/\s*-\s*English.*$/i, '').replace(/^English\s*/i, '').trim();
-  return name ? `${region} · ${name}` : region;
-}
-
-async function setupVoice() {
-  if (!speechAvailable()) {
-    $('voice-section').innerHTML = '<h2>Voice</h2><p class="note">This browser has no speech synthesis.</p>';
-    return;
+// Two natural voices (Jenny, Alan); the phone's own voice only fills in until one is ready.
+function setupVoice() {
+  // voices from before (device voices, older natural ones) become Jenny, with neutral sliders
+  if (!neuralVoice(settings.voiceURI)) {
+    settings.voiceURI = neuralURI(NEURAL_VOICES[0].id);
+    settings.rate = 0.85; settings.pitch = 1;
+    saveSettings(settings);
   }
-  const voices = (await listVoices())
-    .map(v => ({ v, label: voiceLabel(v), gender: voiceGender(v) }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-  const sel = $('voice');
-  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const option = ({ v, label }) =>
-    `<option value="${esc(v.voiceURI)}">${esc(label)}${v.localService ? '' : ' (online)'}</option>`;
-  const groups = ['Female', 'Male', 'Other']
-    .map(g => [g, voices.filter(x => x.gender === g)])
-    .filter(([, list]) => list.length);
-  const natural = `<optgroup label="Natural (beta) · downloads once">${NEURAL_VOICES.map(v =>
-    `<option value="${neuralURI(v.id)}">${esc(v.label)} · ${v.gender.toLowerCase()} · ${v.mb} MB${v.slow ? ' · slow' : ''}</option>`).join('')}</optgroup>`;
-  sel.innerHTML = natural + (!voices.length
-    ? '<option value="">Default</option>'
-    : groups.length === 1 && groups[0][0] === 'Other'
-      ? groups[0][1].map(option).join('')
-      : groups.map(([g, list]) => `<optgroup label="${g}">${list.map(option).join('')}</optgroup>`).join(''));
-  const known = isNeural(settings.voiceURI) ? !!neuralVoice(settings.voiceURI) : voices.some(({ v }) => v.voiceURI === settings.voiceURI);
-  if (settings.voiceURI && known) sel.value = settings.voiceURI;
-  else { sel.value = voices.length ? voices[0].v.voiceURI : ''; settings.voiceURI = sel.value; }
+  const box = $('voice-choice');
+  box.innerHTML = NEURAL_VOICES.map(v =>
+    `<button type="button" data-voice="${neuralURI(v.id)}">${v.name} <small>· ${v.gender}</small></button>`).join('');
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    initAudio();                             // inside the tap, for the preview later
+    settings.voiceURI = b.dataset.voice; saveSettings(settings);
+    configure(settings); showVoiceValues(); loadNatural(true);
+  }));
   $('rate').value = settings.rate;
   $('pitch').value = settings.pitch;
   showVoiceValues();
   configure(settings);
-  if (isNeural(settings.voiceURI)) loadNatural(false);
+  loadNatural(false);
+  pruneVoices().catch(() => {});
 }
 
-// Natural voice: download (once) and load the model, showing progress.
+// Download (once) and load the chosen voice, showing progress.
 async function loadNatural(thenPreview) {
   const v = neuralVoice(settings.voiceURI);
   const status = $('voice-status');
   if (!v) return;
-  const name = v.label.split(' · ').pop();
   const fresh = !(await isDownloaded(v.id).catch(() => false));
-  status.textContent = fresh ? `Downloading ${name}… (${v.mb} MB, only once)` : `Loading ${name}…`;
+  status.textContent = fresh ? `Downloading ${v.name}… (${v.mb} MB, only once)` : `Loading ${v.name}…`;
   try {
-    await useVoice(v.id, f => { status.textContent = `Downloading ${name}… ${Math.round(f * 100)}%`; });
+    await useVoice(v.id, f => { status.textContent = `Downloading ${v.name}… ${Math.round(f * 100)}%`; });
     if (settings.voiceURI !== neuralURI(v.id)) return;      // changed meanwhile
     configure(settings);
-    status.textContent = `${name} is ready and works offline.` +
-      (v.slow ? ' It is slow: each session prepares the voice before starting.' : '');
+    status.textContent = `${v.name} is ready and works offline.`;
     if (thenPreview) preview();
   } catch (e) {
-    status.textContent = `Could not load ${name} (${e.message}). The device voice is used instead.`;
+    status.textContent = `Could not load ${v.name} (${e.message}). The phone's voice is used instead.`;
   }
 }
 
 function showVoiceValues() {
-  const natural = isNeural(settings.voiceURI);
-  $('pitch').disabled = natural;            // natural voices have no tone control
-  $('voice-status').hidden = !natural;
+  document.querySelectorAll('#voice-choice button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.voice === settings.voiceURI)));
   $('rate-val').textContent = settings.rate.toFixed(2);
   $('pitch-val').textContent = settings.pitch.toFixed(2);
 }
@@ -235,16 +205,10 @@ function preview() {
   speakOne('Find a comfortable position, and let your breath settle.');
 }
 
-$('voice').addEventListener('change', e => {
-  initAudio();                               // inside the tap, for the preview later
-  settings.voiceURI = e.target.value; configure(settings); saveSettings(settings); showVoiceValues();
-  if (isNeural(settings.voiceURI)) loadNatural(true);
-  else preview();
-});
 $('voice-forget').addEventListener('click', async () => {
   if (!confirm('Remove the downloaded natural voices from this device?')) return;
   await forgetVoices();
-  if (isNeural(settings.voiceURI)) $('voice-status').textContent = 'Removed. Choose the voice again to download it.';
+  $('voice-status').textContent = 'Removed. Tap a voice to download it again.';
 });
 for (const id of ['rate', 'pitch']) {
   $(id).addEventListener('input', e => {
@@ -256,7 +220,23 @@ for (const id of ['rate', 'pitch']) {
 $('voice-test').addEventListener('click', preview);
 
 // ---------- sessions ----------
-const current = () => scripts.find(s => s.id === settings.session) || scripts[0];
+const modeOf = s => s.mode || 'practice';
+const inMode = () => scripts.filter(s => modeOf(s) === settings.mode);
+const current = () => inMode().find(s => s.id === settings.picked[settings.mode]) ||
+  inMode().find(s => s.id === settings.session) || inMode()[0];
+
+// Hand-drawn symbols for the practice cards.
+const ICONS = {
+  dots: '<circle cx="16" cy="10" r="1.9" fill="currentColor"/><circle cx="10" cy="21" r="1.9" fill="currentColor"/><circle cx="22" cy="21" r="1.9" fill="currentColor"/>',
+  square: '<rect x="8.5" y="8.5" width="15" height="15" rx="2"/>',
+  wave: '<path d="M3 17c3.5-7 7-7 9.5 0s6 6.5 8.5 0 4.5-5 8-3"/>',
+  body: '<circle cx="16" cy="7.5" r="3"/><path d="M16 11.5v15M10 16.5c2.5 1.5 9.5 1.5 12 0"/>',
+  enso: '<path d="M21.5 6.8a10 10 0 1 0 4 6.7"/>',
+  pulse: '<path d="M3 17h6l2.5-6 4 12 3-8 2 2H29"/>',
+  release: '<path d="M6 9c4-3 8 3 12 0s6-2 8 0M6 16h20M6 23c5 0 10 1 20 0"/>',
+  leaf: '<path d="M16 27C8 21 8 11 16 5c8 6 8 16 0 22z"/><path d="M16 27V13"/>'
+};
+const icon = name => `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.enso}</svg>`;
 const chosenMinutes = s => {
   const m = settings.minutes[s.id];
   return s.durations.includes(m) ? m : s.defaultDuration;
@@ -265,6 +245,7 @@ const chosenMinutes = s => {
 async function loadSessions() {
   const files = await fetch('sessions/index.json').then(r => r.json());
   scripts = await Promise.all(files.map(f => fetch('sessions/' + f).then(r => r.json())));
+  pools = await fetch('sessions/pools.json').then(r => r.json()).catch(() => ({}));
   renderSessions();
 }
 
@@ -272,20 +253,27 @@ function renderSessions() {
   const sel = current();
   const list = $('sessions');
   list.innerHTML = '';
-  for (const s of scripts) {
-    const li = document.createElement('li');
+  for (const s of inMode()) {
     const b = document.createElement('button');
-    b.className = 'session';
+    b.className = 'card';
     b.setAttribute('aria-pressed', String(s === sel));
-    b.innerHTML = `<span class="t"></span><span class="d"></span>`;
-    b.querySelector('.t').textContent = s.title;
-    b.querySelector('.d').textContent = s.description || '';
-    b.addEventListener('click', () => { settings.session = s.id; saveSettings(settings); renderSessions(); });
-    li.appendChild(b);
-    list.appendChild(li);
+    b.setAttribute('aria-label', s.title);
+    b.innerHTML = icon(s.icon) + '<span></span>';
+    b.querySelector('span').textContent = s.short || s.title;
+    b.addEventListener('click', () => {
+      settings.picked[settings.mode] = s.id; saveSettings(settings); renderSessions();
+    });
+    list.appendChild(b);
   }
+  $('session-name').textContent = sel ? sel.title : '';
+  document.querySelectorAll('.modes button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === settings.mode)));
   renderDurations();
 }
+
+document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
+  settings.mode = b.dataset.mode; saveSettings(settings); renderSessions();
+}));
 
 function renderDurations() {
   const s = current();
@@ -356,13 +344,52 @@ async function start(script, minutes) {
   document.body.classList.add('in-session');
   wake();
   await lockScreenOn();
-  player = new Player(script, { minutes, speed: TEST_SPEED, onUpdate: render, prepare: prepareVoice });
+  player = new Player(script, { minutes, speed: TEST_SPEED, onUpdate: render, prepare: prepareVoice, pools });
   const clock = setInterval(() => player && render({ paused: player.paused, elapsed: player.elapsed(), total: player.total }), 1000);
-  try { await player.run(); } finally {
+  let finished = false;
+  try { await player.run(); finished = !player.stopped; } finally {
     clearInterval(clock);
-    if (!player.stopped) await new Promise(r => setTimeout(r, 2500 / TEST_SPEED));
+    if (finished) {
+      await new Promise(r => setTimeout(r, 2500 / TEST_SPEED));
+      await showPassage(script, player.chapters);
+    }
     end();
   }
+}
+
+// After a session that ran to the end: a short passage to read, gently moving,
+// until the screen is tapped. Never one the voice just read; skipped without the book.
+async function showPassage(script, used) {
+  const theme = script.closing || ['stillness', 'letting-go', 'softness', 'nature'][Math.floor(Math.random() * 4)];
+  const p = await pickPassage(theme, { maxLines: 8, exclude: used, getChapter }).catch(() => null);
+  if (!p) return;
+  rememberChapters([p.chapter]);
+  const box = $('passage');
+  const verses = box.querySelector('.verses');
+  verses.innerHTML = '';
+  p.lines.forEach((line, i) => {
+    const el = document.createElement('p');
+    el.textContent = line;
+    el.style.animationDelay = `${0.8 + i * 1.1}s, ${-i * 0.9}s`;   // appear one by one; the wave travels down
+    verses.appendChild(el);
+  });
+  const chapter = box.querySelector('.chapter');
+  chapter.textContent = String(p.chapter);
+  chapter.style.animationDelay = `${1.5 + p.lines.length * 1.1}s`;
+  box.classList.remove('leaving', 'settled');
+  box.hidden = false;
+  $('session').classList.add('reading');
+  $('session').classList.remove('quiet');
+  breathe(false, 3);
+  setBreath(null);
+  duck(true);
+  const settle = setTimeout(() => box.classList.add('settled'), (4 + p.lines.length * 4) * 1000);
+  await new Promise(resolve => box.addEventListener('click', resolve, { once: true }));
+  clearTimeout(settle);
+  box.classList.add('leaving');
+  await new Promise(r => setTimeout(r, 1200));
+  box.hidden = true;
+  $('session').classList.remove('reading');
 }
 
 // Natural voices synthesize the session's sentences ahead of time. Fast ones

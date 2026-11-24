@@ -11,22 +11,24 @@ PWA pessoal de meditação guiada (em inglês) com trechos do Tao Te Ching na tr
 4. No app, toque em **Load EPUB** e escolha o arquivo.
 
 ## Estrutura
-- `sessions/*.json`: roteiros (liste novos em `sessions/index.json`)
+- `sessions/*.json`: roteiros (liste novos em `sessions/index.json`); `sessions/pools.json`: bancos de frases compartilhados (ex.: as intros do pós-treino)
 - `js/player.js`: executa os roteiros e distribui o tempo dos passos `fill`
 - `js/speech.js`: voz do navegador (Web Speech API), ou a voz natural quando escolhida
-- `js/neural.js`, `js/piper-worker.js`, `js/piper-core.js`: vozes naturais (beta), Piper rodando no aparelho; o modelo é baixado uma vez do Hugging Face. Motor em `vendor/` (veja `vendor/README.md`)
+- `js/neural.js`, `js/piper-worker.js`, `js/piper-core.js`: as duas vozes (Jenny e Alan), Piper rodando no aparelho; o modelo é baixado uma vez do Hugging Face. O ajuste de cada voz (andamento, ritmo, tom, pausa, sala) fica em `NEURAL_VOICES`. Motor em `vendor/` (veja `vendor/README.md`)
 - `js/audio.js`: sino e sons de respiração (Web Audio API)
 - `js/epub.js`, `js/zip.js`: importação do EPUB sem dependências
 - `js/store.js`: IndexedDB e preferências
 
 ## Formato dos roteiros
+
+Campos do roteiro: `mode` (`practice`, padrão, ou `after` para o pós-treino), `short` (a palavra do cartão), `icon` (`dots`, `square`, `wave`, `body`, `enso`, `pulse`, `release`, `leaf`), `closing` (tema do trecho que aparece no fim; sem ele, um tema ao acaso).
 | tipo | campos |
 |---|---|
-| `speak` | `text` |
+| `speak` | `text`, **ou** `variants` (lista), **ou** `pool` (nome em `pools.json`): com lista, uma frase por dia, girando pela semana |
 | `pause` | `seconds` **ou** `fill` (peso) |
 | `bell` | `strikes` |
 | `tao` | `theme` (stillness / softness / letting-go / nature) e `maxLines`, **ou** `chapter` + `stanzas` fixos; `lineGap` (s entre versos) |
-| `breath` | `pattern` `{inhale, hold?, exhale, holdOut?}`, `count` `{to, voiced: none/first-round/all}`, `cues` (nº de respirações com "In/Hold/Out" falado), `seconds` **ou** `fill` |
+| `breath` | `pattern` `{inhale, inhale2?, hold?, exhale, holdOut?}` (`inhale2`: segunda inspiração curta, o suspiro fisiológico), `count` `{to, voiced: none/first-round/all}`, `cues` (nº de respirações com "In/Hold/Out" falado), `seconds` **ou** `fill` |
 
 Qualquer passo aceita `minMinutes` / `maxMinutes`: ele só entra quando a duração escolhida está nesse intervalo. Assim o mesmo roteiro serve de 3 a 20 min.
 

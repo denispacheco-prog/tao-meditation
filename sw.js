@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when files change.
-const VERSION = 'v8';
+const VERSION = 'v10';
 // Kept across versions: the voice engine (vendor/, ~33 MB, versioned paths),
 // natural voice models and synthesized sentences (see js/neural.js).
 const KEEP = ['tao-engine', 'tao-voices', 'tao-speech'];
@@ -9,6 +9,8 @@ const FILES = [
   'js/neural.js', 'js/piper-worker.js', 'js/piper-core.js',
   'sessions/index.json', 'sessions/breath-counting.json', 'sessions/square-breath.json',
   'sessions/long-exhale.json', 'sessions/body-scan.json', 'sessions/sitting-quietly.json',
+  'sessions/after-heart.json', 'sessions/after-release.json', 'sessions/after-exhale.json',
+  'sessions/after-thanks.json', 'sessions/pools.json',
   'icons/icon-192.png', 'icons/icon-512.png'
 ];
 

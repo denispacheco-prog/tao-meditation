@@ -1,0 +1,40 @@
+{
+  "id": "after-release",
+  "mode": "after",
+  "title": "Let the Muscles Go",
+  "short": "release",
+  "icon": "release",
+  "technique": "body-scan",
+  "description": "A quick pass through the body, softening what worked hardest.",
+  "lang": "en",
+  "durations": [3, 4, 5],
+  "defaultDuration": 4,
+  "steps": [
+    { "type": "bell", "strikes": 1 },
+    { "type": "pause", "seconds": 3 },
+    { "type": "speak", "pool": "after-intro" },
+    { "type": "pause", "seconds": 3 },
+
+    { "type": "speak", "text": "Lie down if you can, or sit. Let the floor take your weight." },
+    { "type": "pause", "fill": 1 },
+
+    { "type": "speak", "text": "Bring your attention to the legs. Feel the warmth of the work in them. Now let them go heavy." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "The hips and the lower back. Breathe into them, and soften." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "The arms and the shoulders. Let them drop, as if someone just lifted a weight off them." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "The hands, the jaw, the face. Unclench whatever is still holding on." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Look for any place that is still tight. Breathe toward it, and let the breath out loosen it.", "minMinutes": 4 },
+    { "type": "pause", "fill": 2, "minMinutes": 4 },
+
+    { "type": "speak", "text": "Feel the whole body resting. The work is done." },
+    { "type": "pause", "fill": 2 },
+    { "type": "bell", "strikes": 2 }
+  ]
+}

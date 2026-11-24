@@ -15,8 +15,13 @@ const NUMBERS = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight',
 
 class Stopped extends Error {}
 
+// Days since 1970 in local time: changes at local midnight.
+export function dayNumber(date = new Date()) {
+  return Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
+}
+
 export class Player {
-  constructor(script, { minutes, speed = 1, onUpdate = () => {}, prepare = null }) {
+  constructor(script, { minutes, speed = 1, onUpdate = () => {}, prepare = null, pools = {}, day = dayNumber() }) {
     this.script = script;
     this.total = minutes * 60;
     // Steps can be limited to some durations: "minMinutes" / "maxMinutes".
@@ -34,7 +39,18 @@ export class Player {
     this.resumeWaiters = [];
     this.prepare = prepare;        // optional: (texts) => Promise, awaited before the clock starts
     this.stopped$ = new Promise(r => { this.onStopped = r; });
+    // A speak step can have "variants" or name a shared "pool" of texts: one is chosen per
+    // day, so a week of the same session never repeats an intro (seven or more variants).
+    this.texts = new Map();
+    const offset = [...script.id].reduce((h, c) => h + c.charCodeAt(0), 0);
+    for (const st of this.steps) {
+      if (st.type !== 'speak') continue;
+      const options = st.variants || pools[st.pool] || null;
+      this.texts.set(st, options && options.length ? options[(day + offset) % options.length] : st.text);
+    }
   }
+
+  textOf(step) { return this.texts.get(step) ?? step.text; }
 
   // ---------- time ----------
   tick() {
@@ -116,10 +132,10 @@ export class Player {
   utterances() {
     const out = [];
     for (const s of this.steps) {
-      if (s.type === 'speak') out.push(s.text);
+      if (s.type === 'speak') out.push(this.textOf(s));
       else if (s.type === 'tao') out.push(...this.taoLines(s));
       else if (s.type === 'breath') {
-        if (s.cues) out.push('In', 'Hold', 'Out');
+        if (s.cues) out.push('In', 'Hold', 'Out', ...(s.pattern.inhale2 ? ['And in'] : []));
         const voiced = s.count && s.count.voiced && s.count.voiced !== 'none';
         if (voiced) out.push(...NUMBERS.slice(0, s.count.to || 10));
       }
@@ -129,7 +145,7 @@ export class Player {
 
   fixedSeconds(step) {
     switch (step.type) {
-      case 'speak': return estimate(step.text);
+      case 'speak': return estimate(this.textOf(step));
       case 'pause': return step.fill ? 0 : step.seconds || 0;
       case 'bell': return (step.strikes || 1) * BELL_SECONDS;
       case 'tao': {
@@ -143,7 +159,7 @@ export class Player {
 
   cycle(step) {
     const p = step.pattern;
-    return p.inhale + (p.hold || 0) + p.exhale + (p.holdOut || 0);
+    return p.inhale + (p.inhale2 || 0) + (p.hold || 0) + p.exhale + (p.holdOut || 0);
   }
   minBreath(step) {
     if (step.count && step.count.voiced === 'first-round') return step.count.to * this.cycle(step);
@@ -173,7 +189,7 @@ export class Player {
       const steps = this.steps;
       for (let i = 0; i < steps.length; i++) {
         const s = steps[i];
-        if (s.type === 'speak') await this.say(s.text, '');
+        if (s.type === 'speak') await this.say(this.textOf(s), '');
         else if (s.type === 'pause') {
           this.emit({ phase: 'rest', label: '' });
           await this.wait(s.fill ? this.allocate(i) : s.seconds);
@@ -220,8 +236,9 @@ export class Player {
 
   // "count": count breaths on the exhale (voiced none / first-round / all).
   // "cues": speak "In / Hold / Out" for the first N breaths.
+  // "inhale2": a short second inhale on top of the first (the physiological sigh).
   async runBreath(step, seconds) {
-    const { inhale, hold = 0, exhale, holdOut = 0 } = step.pattern;
+    const { inhale, inhale2 = 0, hold = 0, exhale, holdOut = 0 } = step.pattern;
     const breaths = Math.max(1, Math.round(seconds / this.cycle(step)));
     const to = step.count?.to || 10;
     const voiced = step.count?.voiced || 'none';
@@ -231,6 +248,7 @@ export class Player {
       const cue = b < cues;
       const speakCount = step.count && (voiced === 'all' || (voiced === 'first-round' && b < to));
       await this.phase('inhale', inhale, cue ? 'in' : '', cue && 'In');
+      await this.phase('inhale', inhale2, cue ? 'in' : '', cue && 'And in');
       await this.phase('hold', hold, cue ? 'hold' : '', cue && 'Hold');
       await this.phase('exhale', exhale, step.count ? String(n) : cue ? 'out' : '',
         speakCount ? (NUMBERS[n - 1] || String(n)) : cue && 'Out');

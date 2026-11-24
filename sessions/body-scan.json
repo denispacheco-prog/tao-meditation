@@ -1,6 +1,8 @@
 {
   "id": "body-scan",
   "title": "Body Scan",
+  "short": "body",
+  "icon": "body",
   "technique": "body-scan",
   "description": "Move attention slowly through the body, from the feet to the crown.",
   "lang": "en",

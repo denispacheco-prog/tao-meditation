@@ -1,6 +1,8 @@
 {
   "id": "square-breath",
   "title": "Square Breath",
+  "short": "square",
+  "icon": "square",
   "technique": "box-breathing",
   "description": "In, hold, out, hold — four counts each. Steadies the mind quickly.",
   "lang": "en",

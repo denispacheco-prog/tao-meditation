@@ -1,6 +1,8 @@
 {
   "id": "long-exhale",
   "title": "Long Exhale",
+  "short": "exhale",
+  "icon": "wave",
   "technique": "extended-exhale",
   "description": "Let each out-breath be longer than the in-breath. Calming; good in the evening.",
   "lang": "en",

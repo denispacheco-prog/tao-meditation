@@ -1,6 +1,8 @@
 {
   "id": "breath-counting",
   "title": "Breath Counting",
+  "short": "count",
+  "icon": "dots",
   "technique": "breath-counting",
   "description": "Count each out-breath from one to ten, then begin again.",
   "lang": "en",

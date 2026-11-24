@@ -3,7 +3,7 @@
 // Text is spoken one sentence at a time: Chrome on Android is more
 // reliable with short utterances, and pausing can resume per sentence.
 
-import { isNeural, neuralVoice, neuralReady, setNeuralRate, speakNeural, stopNeural, prefetch } from './neural.js';
+import { isNeural, neuralVoice, neuralReady, setNeuralRate, setNeuralTone, speakNeural, stopNeural, prefetch } from './neural.js';
 
 const synth = window.speechSynthesis;
 let voice = null;
@@ -32,6 +32,7 @@ export function configure({ voiceURI, rate: r, pitch: p } = {}) {
     if (synth) voice = natural ? null : synth.getVoices().find(v => v.voiceURI === voiceURI) || null;
   }
   setNeuralRate(rate);
+  setNeuralTone(pitch);
 }
 
 // The natural voice in use, once its model is loaded (else null).

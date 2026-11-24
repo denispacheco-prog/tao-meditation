@@ -1,15 +1,23 @@
-// Natural voices (beta): Piper models that run on this device.
+// Natural voices: Piper models that run on this device.
 // The model is downloaded once from Hugging Face and kept in Cache Storage;
 // the text never leaves the device. Synthesized sentences are kept too
 // (on this device only), so a sentence heard before plays at once.
+//
+// Two voices, each with its own tuning, chosen by ear from samples:
+//   tempo  stretches the speech (on top of the Speed slider, 1 = as set)
+//   noise  noise_scale: lower = steadier, calmer delivery
+//   w      noise_w: lower = more even rhythm, more articulated
+//   pitch  playback rate: below 1 lowers the voice (length is compensated)
+//   gap    extra silence after each sentence (s)
+//   room   a small, soft room around the voice (0 = dry, 1 = full)
 
 import { getAudio } from './audio.js';
 
 export const NEURAL_VOICES = [
-  { id: 'en_GB-alba-medium', path: 'en/en_GB/alba/medium', label: 'Scottish · Alba', gender: 'Female', mb: 63 },
-  { id: 'en_US-hfc_female-medium', path: 'en/en_US/hfc_female/medium', label: 'American · HFC', gender: 'Female', mb: 63 },
-  // High quality, but several times slower: a session prepares it before starting.
-  { id: 'en_US-ryan-high', path: 'en/en_US/ryan/high', label: 'American · Ryan', gender: 'Male', mb: 121, slow: true },
+  { id: 'en_GB-jenny_dioco-medium', path: 'en/en_GB/jenny_dioco/medium', name: 'Jenny', gender: 'female', mb: 63,
+    tune: { tempo: 1.105, noise: 0.5, w: 0.55, pitch: 0.94, gap: 0.9, room: 0.6 } },
+  { id: 'en_GB-alan-medium', path: 'en/en_GB/alan/medium', name: 'Alan', gender: 'male', mb: 63,
+    tune: { tempo: 1, noise: null, w: null, pitch: 1, gap: 0.4, room: 0 } },
 ];
 
 const MODELS = 'https://huggingface.co/rhasspy/piper-voices/resolve/main/';
@@ -83,13 +91,25 @@ export async function forgetVoices() {
   current = null; ready = null; isReady = false; memory.clear();
 }
 
-// ---------- voice selection ----------
+// Frees the space of voices the app no longer offers (models and their sentences).
+export async function pruneVoices() {
+  if (!('caches' in self)) return;
+  const keep = url => NEURAL_VOICES.some(v => url.includes(v.id));
+  for (const name of [VOICE_CACHE, SPEECH_CACHE]) {
+    const cache = await caches.open(name);
+    for (const req of await cache.keys()) if (!keep(req.url)) await cache.delete(req);
+  }
+}
+
+// ---------- voice selection and tuning ----------
 let current = null;       // voice id
 let ready = null;         // promise: model loaded in the worker
 let isReady = false;
-let slow = 1 / 0.85;      // Piper length scale factor (from the Speed slider)
+let rate = 0.85;          // Speed slider (0.6–1.1)
+let tone = 1;             // Tone slider (0.7–1.3)
 
 export const neuralReady = () => isReady;
+const tuneOf = () => (NEURAL_VOICES.find(v => v.id === current) || NEURAL_VOICES[0]).tune;
 
 export function useVoice(id, onProgress) {
   if (current === id && ready) return ready;
@@ -108,17 +128,25 @@ export function useVoice(id, onProgress) {
   return p;
 }
 
-// Speed slider (0.6–1.1, 0.85 by default) -> how much to stretch the speech.
-export function setNeuralRate(rate) {
-  const next = 1 / (rate || 0.85);
-  if (Math.abs(next - slow) > 1e-6) { slow = next; memory.clear(); }
+export function setNeuralRate(r) { r = r || 0.85; if (r !== rate) { rate = r; memory.clear(); } }
+export function setNeuralTone(t) { t = t || 1; if (t !== tone) { tone = t; memory.clear(); } }
+
+// What the synthesis and the playback use right now.
+function params() {
+  const t = tuneOf();
+  const playRate = t.pitch * (1 + (tone - 1) * 0.5);       // the slider moves the voice by half as much
+  return {
+    slow: (t.tempo / rate) * playRate,                     // pre-shortened: playback at playRate stretches it back
+    playRate, noise: t.noise, w: t.w, gap: t.gap, room: t.room
+  };
 }
 
 // ---------- synthesis (one sentence at a time, in order) ----------
 const memory = new Map();          // key -> Promise<AudioBuffer>
 let queue = Promise.resolve();
 
-const keyFor = text => `https://speech.invalid/${current}/${slow.toFixed(3)}/${encodeURIComponent(text)}`;
+const keyFor = (text, p) =>
+  `https://speech.invalid/${current}/${p.slow.toFixed(3)}-${p.gap}/${encodeURIComponent(text)}`;
 
 function toBuffer(pcm, sampleRate) {
   const buf = new AudioBuffer({ length: Math.max(1, pcm.length), numberOfChannels: 1, sampleRate });
@@ -126,27 +154,32 @@ function toBuffer(pcm, sampleRate) {
   return buf;
 }
 
-async function synthesize(text, key) {
+async function synthesize(text, key, p) {
   const store = await caches.open(SPEECH_CACHE).catch(() => null);
   const hit = store && await store.match(key);
   if (hit) {
-    const rate = Number(hit.headers.get('x-sample-rate'));
-    return toBuffer(new Float32Array(await hit.arrayBuffer()), rate);
+    const sr = Number(hit.headers.get('x-sample-rate'));
+    return toBuffer(new Float32Array(await hit.arrayBuffer()), sr);
   }
   await ready;
-  const { pcm, sampleRate } = await call({ type: 'synth', text, slow });
+  const { pcm: raw, sampleRate } = await call({ type: 'synth', text, slow: p.slow, noise: p.noise, w: p.w });
+  // silence after the sentence (it will be played at playRate)
+  const pad = Math.round(p.gap * sampleRate * p.playRate);
+  const pcm = new Float32Array(raw.length + pad);
+  pcm.set(raw);
   const buffer = toBuffer(pcm, sampleRate);
   if (store) store.put(key, new Response(pcm.buffer, { headers: { 'x-sample-rate': String(sampleRate) } })).catch(() => {});
   return buffer;
 }
 
 export function synth(text) {
-  const key = keyFor(text);
+  const p = params();
+  const key = keyFor(text, p);
   if (!memory.has(key)) {
-    const p = queue.then(() => synthesize(text, key));
-    queue = p.catch(() => {});
-    p.catch(() => memory.delete(key));
-    memory.set(key, p);
+    const job = queue.then(() => synthesize(text, key, p));
+    queue = job.catch(() => {});
+    job.catch(() => memory.delete(key));
+    memory.set(key, job);
     if (memory.size > 400) memory.delete(memory.keys().next().value);
   }
   return memory.get(key);
@@ -160,18 +193,48 @@ export function prefetch(texts, onProgress) {
   return Promise.all(unique.map(t => synth(t).then(() => onProgress && onProgress(++done, unique.length))));
 }
 
+// ---------- the room around the voice ----------
+// A gentle low-pass blended with the dry voice (softens sibilance) and a few
+// sparse, fading reflections: a small soft room, not a hall.
+const TAPS = [[0.023, 0.22], [0.041, 0.17], [0.067, 0.13], [0.097, 0.1], [0.131, 0.07], [0.173, 0.05], [0.229, 0.03]];
+const rooms = new Map();           // room amount -> input node
+
+function voiceInput(audio, room) {
+  if (!room) return audio.master;
+  if (rooms.has(room)) return rooms.get(room);
+  const { ctx, master } = audio;
+  const input = ctx.createGain();
+  const dry = ctx.createGain(); dry.gain.value = 0.45;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500; lp.Q.value = 0.5;
+  const soft = ctx.createGain(); soft.gain.value = 0.55;
+  input.connect(dry).connect(master);
+  input.connect(lp).connect(soft).connect(master);
+  const len = Math.ceil(ctx.sampleRate * 0.25);
+  const ir = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = ir.getChannelData(0);
+  for (const [t, g] of TAPS) d[Math.round(t * ctx.sampleRate)] = g * room;
+  const conv = ctx.createConvolver();
+  conv.normalize = false;
+  conv.buffer = ir;
+  input.connect(conv).connect(master);
+  rooms.set(room, input);
+  return input;
+}
+
 // ---------- playback ----------
 let playing = null;
 let generation = 0;
 
 export async function speakNeural(text) {
   const gen = generation;
+  const p = params();
   const buffer = await synth(text);
   const audio = getAudio();
   if (gen !== generation || !audio) return;          // stopped while preparing
   const src = audio.ctx.createBufferSource();
   src.buffer = buffer;
-  src.connect(audio.master);
+  src.playbackRate.value = p.playRate;
+  src.connect(voiceInput(audio, p.room));
   await new Promise(resolve => {
     playing = { src, resolve };
     src.onended = () => { if (playing && playing.src === src) playing = null; resolve(); };

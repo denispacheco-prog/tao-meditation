@@ -1,0 +1,43 @@
+{
+  "id": "after-heart",
+  "mode": "after",
+  "title": "Slow the Heart",
+  "short": "heart",
+  "icon": "pulse",
+  "technique": "physiological-sigh",
+  "description": "A double breath in, a long breath out. Brings the heart rate down quickly.",
+  "lang": "en",
+  "durations": [3, 4, 5],
+  "defaultDuration": 4,
+  "steps": [
+    { "type": "bell", "strikes": 1 },
+    { "type": "pause", "seconds": 3 },
+    { "type": "speak", "pool": "after-intro" },
+    { "type": "pause", "seconds": 3 },
+
+    { "type": "speak", "text": "Stand, or sit down, whichever feels right. Your heart is still working hard. That's fine." },
+    { "type": "pause", "seconds": 3 },
+    { "type": "speak", "text": "We'll use a double breath. In through the nose, then a little more on top. Then a long, slow breath out through the mouth." },
+    { "type": "pause", "seconds": 2 },
+    {
+      "type": "breath",
+      "pattern": { "inhale": 2.5, "inhale2": 1.2, "exhale": 6.5 },
+      "cues": 3,
+      "fill": 2
+    },
+
+    { "type": "speak", "text": "Keep going on your own. Let every breath out be long and easy." },
+    {
+      "type": "breath",
+      "pattern": { "inhale": 2.5, "inhale2": 1.2, "exhale": 6.5 },
+      "fill": 3
+    },
+
+    { "type": "speak", "text": "Now let the breath be natural. Notice the heartbeat slowing down, all on its own." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Good. Carry this calm with you." },
+    { "type": "pause", "seconds": 3 },
+    { "type": "bell", "strikes": 2 }
+  ]
+}

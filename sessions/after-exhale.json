@@ -1,0 +1,38 @@
+{
+  "id": "after-exhale",
+  "mode": "after",
+  "title": "Long Exhale",
+  "short": "exhale",
+  "icon": "wave",
+  "technique": "extended-exhale",
+  "description": "In for four, out for eight. Moves the body from effort into rest.",
+  "lang": "en",
+  "durations": [3, 4, 5],
+  "defaultDuration": 4,
+  "steps": [
+    { "type": "bell", "strikes": 1 },
+    { "type": "pause", "seconds": 3 },
+    { "type": "speak", "pool": "after-intro" },
+    { "type": "pause", "seconds": 3 },
+
+    { "type": "speak", "text": "Let's take the body out of effort and into rest. Breathe in for four, and out for eight." },
+    { "type": "pause", "seconds": 2 },
+    {
+      "type": "breath",
+      "pattern": { "inhale": 4, "exhale": 8 },
+      "cues": 2,
+      "fill": 2
+    },
+
+    { "type": "speak", "text": "Continue on your own. The long breath out tells the body it is safe to rest." },
+    {
+      "type": "breath",
+      "pattern": { "inhale": 4, "exhale": 8 },
+      "fill": 5
+    },
+
+    { "type": "speak", "text": "Let go of the counting. Just breathe." },
+    { "type": "pause", "fill": 1 },
+    { "type": "bell", "strikes": 2 }
+  ]
+}

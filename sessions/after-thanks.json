@@ -1,0 +1,34 @@
+{
+  "id": "after-thanks",
+  "mode": "after",
+  "title": "Thank the Body",
+  "short": "thanks",
+  "icon": "leaf",
+  "technique": "gratitude",
+  "description": "Notice the body after the effort, and thank it for what it did today.",
+  "lang": "en",
+  "durations": [3, 4, 5],
+  "defaultDuration": 4,
+  "steps": [
+    { "type": "bell", "strikes": 1 },
+    { "type": "pause", "seconds": 3 },
+    { "type": "speak", "pool": "after-intro" },
+    { "type": "pause", "seconds": 3 },
+
+    { "type": "speak", "text": "Take a moment to notice the body after the effort. The heat. The heartbeat. The tiredness." },
+    { "type": "pause", "fill": 1 },
+
+    { "type": "speak", "text": "This body carried you through the training today. It did what you asked of it." },
+    { "type": "pause", "fill": 1 },
+
+    { "type": "speak", "text": "Silently, thank it. The legs that held you. The lungs that kept breathing. The heart that kept the pace." },
+    { "type": "pause", "fill": 2 },
+
+    { "type": "speak", "text": "Notice one thing that felt good today. Stay with it for a few breaths.", "minMinutes": 4 },
+    { "type": "pause", "fill": 2, "minMinutes": 4 },
+
+    { "type": "speak", "text": "Rest here. There is nothing more to do." },
+    { "type": "pause", "fill": 1 },
+    { "type": "bell", "strikes": 2 }
+  ]
+}

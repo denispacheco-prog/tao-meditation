@@ -1,6 +1,8 @@
 {
   "id": "sitting-quietly",
   "title": "Sitting Quietly",
+  "short": "sit",
+  "icon": "enso",
   "technique": "open-awareness",
   "description": "Little guidance, mostly silence. Let everything be as it is.",
   "lang": "en",

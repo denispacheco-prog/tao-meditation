@@ -30,15 +30,16 @@ export async function createPiper({ ort, createPhonemize, locateFile }) {
       config = modelConfig;
     },
 
-    // slow > 1 stretches the speech (Piper's length_scale).
-    async synth(text, slow = 1) {
+    // slow > 1 stretches the speech (Piper's length_scale); noise / w override
+    // the model's noise_scale / noise_w (null keeps the model's own).
+    async synth(text, slow = 1, { noise = null, w = null } = {}) {
       if (!session) throw new Error('No voice loaded.');
       const ids = phonemeIds(text.trim());
       const { noise_scale, length_scale, noise_w } = config.inference;
       const feeds = {
         input: new ort.Tensor('int64', BigInt64Array.from(ids, BigInt), [1, ids.length]),
         input_lengths: new ort.Tensor('int64', BigInt64Array.from([BigInt(ids.length)])),
-        scales: new ort.Tensor('float32', Float32Array.from([noise_scale, length_scale * slow, noise_w])),
+        scales: new ort.Tensor('float32', Float32Array.from([noise ?? noise_scale, length_scale * slow, w ?? noise_w])),
       };
       if (Object.keys(config.speaker_id_map || {}).length) {
         feeds.sid = new ort.Tensor('int64', BigInt64Array.from([0n]));
