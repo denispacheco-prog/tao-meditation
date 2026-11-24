@@ -18,6 +18,7 @@
   --l3: rgba(180, 105, 115, 0.32);
   --card: rgba(27, 26, 22, 0.45);
   --veil: rgba(27, 26, 22, 0.82);
+  --veil-0: rgba(27, 26, 22, 0);
   --font: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
 }
 [data-theme="dusk"] {
@@ -39,6 +40,7 @@
   --l3: rgba(210, 135, 145, 0.4);
   --card: rgba(58, 65, 75, 0.5);
   --veil: rgba(58, 65, 75, 0.8);
+  --veil-0: rgba(58, 65, 75, 0);
 }
 [data-theme="day"] {
   --bg: #ede7da;
@@ -59,6 +61,7 @@
   --l3: rgba(215, 135, 148, 0.5);
   --card: rgba(246, 241, 231, 0.6);
   --veil: rgba(237, 231, 218, 0.82);
+  --veil-0: rgba(237, 231, 218, 0);
 }
 
 * { box-sizing: border-box; }
@@ -303,24 +306,37 @@ header { margin-bottom: 1.6rem; }
 #session.reading > :not(#passage):not(#mood) { opacity: 0; pointer-events: none; transition: opacity 1.5s ease; }
 .modes { flex-wrap: wrap; row-gap: 0; }
 
-/* ---------- veils: the scene stays alive in the middle, calmer where text sits ---------- */
-#home::before, #home::after {
-  content: ''; position: fixed; left: 0; right: 0; z-index: -1; pointer-events: none;
-}
-#home::before { top: 0; height: 36vh; background: linear-gradient(to bottom, var(--veil) 0%, var(--veil) 40%, transparent 100%); }
-#home::after { bottom: 0; height: 50vh; background: linear-gradient(to top, var(--veil) 0%, var(--veil) 38%, transparent 100%); }
-#session::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 45vh; z-index: -1; pointer-events: none;
-  background: linear-gradient(to top, var(--veil) 0%, transparent 100%); opacity: 0.85;
-}
-#session::before {
-  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
-  background: radial-gradient(ellipse 85% 60% at center, var(--veil) 0%, var(--veil) 45%, transparent 100%);
-  transition: opacity 2s ease;
-}
-#session.reading::before { opacity: 1; }
+/* ---------- veils: the scene stays alive in the middle, calmer where text sits ----------
+   Their own layer between the scene (z 0) and the content: veils painted inside the
+   content's layer were composited against black on Chrome. Gradients fade to the
+   same colour at zero alpha (not "transparent", which is black at zero alpha). */
+#veils { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+#veils i { position: absolute; left: 0; right: 0; transition: opacity 1.5s ease; }
+#veils .top { top: 0; height: 36vh; background: linear-gradient(to bottom, var(--veil) 0%, var(--veil) 40%, var(--veil-0) 100%); }
+#veils .bottom { bottom: 0; height: 50vh; background: linear-gradient(to top, var(--veil) 0%, var(--veil) 38%, var(--veil-0) 100%); }
+#veils .center { inset: 0; opacity: 0; background: radial-gradient(ellipse 85% 60% at center, var(--veil) 0%, var(--veil) 45%, var(--veil-0) 100%); }
+body.in-session #veils .top { opacity: 0; }
+body.in-session #veils .bottom { opacity: 0.85; height: 45vh; }
+body.reading #veils .center { opacity: 1; }
 /* a soft halo in the background colour behind small text */
 .modes button, .dur, #session-name, #daily, .hint, #remaining, #label, .controls, #j-sub, .sub-label,
 .close-hint, .chapter, .verses p {
-  text-shadow: 0 0 2px var(--veil), 0 0 14px var(--veil);
+  text-shadow: 0 0 2px var(--veil), 0 0 8px var(--veil);
 }
+
+/* ---------- spacing and small fixes ---------- */
+[hidden] { display: none !important; }            /* .link etc. must not override hidden */
+.cards { flex: none; }
+#session-name { margin-top: 1rem; }
+.go { margin-top: auto; }
+/* an odd last card takes the whole row, laid out sideways */
+.cards > .card:last-child:nth-child(odd) { grid-column: 1 / -1; aspect-ratio: auto; min-height: 84px; flex-direction: row; gap: 0.9rem; }
+/* the four modes on one line, evenly spread */
+.modes { flex-wrap: nowrap; justify-content: space-between; gap: 0; }
+.modes span { display: none; }
+.modes button { font-size: 0.88rem; letter-spacing: 0.04em; padding: 0 0.25rem; }
+.begin { border: 1px solid var(--accent-soft); }
+#durations.many small { display: none; }          /* six durations: the numbers alone */
+#durations.many .dur { font-size: 1rem; }
+#timer-panel .sub-label { text-align: center; }
+.hint { margin-top: 0.6rem; }

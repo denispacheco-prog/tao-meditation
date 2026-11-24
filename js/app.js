@@ -62,9 +62,11 @@ $('book-remove').addEventListener('click', async () => {
 
 // ---------- settings sheet ----------
 const sheet = $('settings');
-$('open-settings').addEventListener('click', () => sheet.showModal());
+// Opening a dialog by touch should not draw a focus ring on its first button.
+const openDialog = d => { d.showModal(); if (document.activeElement) document.activeElement.blur(); };
+$('open-settings').addEventListener('click', () => openDialog(sheet));
 sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });   // tap outside closes
-$('book-hint').addEventListener('click', () => sheet.showModal());
+$('book-hint').addEventListener('click', () => openDialog(sheet));
 
 // ---------- surprise me ----------
 // Picks a new theme and scene (never the same as last time); music varies per session.
@@ -343,8 +345,9 @@ document.querySelectorAll('.modes button').forEach(b => b.addEventListener('clic
 
 function renderDurations(list, chosen, onPick) {
   const box = $('durations');
+  box.classList.toggle('many', list.length > 5);
   box.innerHTML = list.map(m =>
-    `<button class="dur" data-min="${m}" aria-pressed="${m === chosen}">${m}<small>min</small></button>`).join('');
+    `<button class="dur" data-min="${m}" aria-pressed="${m === chosen}" aria-label="${m} minutes">${m}<small>min</small></button>`).join('');
   box.querySelectorAll('.dur').forEach(b => b.addEventListener('click', () => {
     onPick(Number(b.dataset.min));
     saveSettings(settings);
@@ -355,7 +358,7 @@ function renderDurations(list, chosen, onPick) {
 $('begin').addEventListener('click', () => {
   const mode = settings.mode;
   if (mode === 'journey') {
-    if (!bookLoaded) { sheet.showModal(); return; }
+    if (!bookLoaded) { openDialog(sheet); return; }
     const ch = settings.journey.ch;
     start(journeyScript(ch), pickedFrom(JOURNEY_DURATIONS, settings.minutes.journey, 5), () => chapterRead(ch));
   } else if (mode === 'timer') {
@@ -399,7 +402,7 @@ $('open-journal').addEventListener('click', () => {
   const now = new Date();
   shownMonth = { y: now.getFullYear(), m: now.getMonth() };
   renderMonth(); renderSaved();
-  journal.showModal();
+  openDialog(journal);
 });
 journal.addEventListener('click', e => { if (e.target === journal) journal.close(); });
 $('m-prev').addEventListener('click', () => { shiftMonth(-1); });
@@ -567,6 +570,7 @@ async function showPassage(script, used) {
   box.classList.remove('leaving', 'settled');
   box.hidden = false;
   $('session').classList.add('reading');
+  document.body.classList.add('reading');
   $('session').classList.remove('quiet');
   breathe(false, 3);
   setBreath(null);
@@ -578,6 +582,7 @@ async function showPassage(script, used) {
   await new Promise(r => setTimeout(r, 1200));
   box.hidden = true;
   $('session').classList.remove('reading');
+  document.body.classList.remove('reading');
 }
 
 // Natural voices synthesize the session's sentences ahead of time. Fast ones

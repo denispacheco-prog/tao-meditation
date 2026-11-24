@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when files change.
-const VERSION = 'v13';
+const VERSION = 'v14';
 // Kept across versions: the voice engine (vendor/, ~33 MB, versioned paths),
 // natural voice models and synthesized sentences (see js/neural.js).
 const KEEP = ['tao-engine', 'tao-voices', 'tao-speech'];
