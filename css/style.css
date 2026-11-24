@@ -2,60 +2,63 @@
 :root, [data-theme="night"] {
   --bg: #1b1a16;
   --ink: #e9e3d2;
-  --muted: #958e78;
-  --faint: #5d5849;
+  --muted: #a59e89;
+  --faint: #8a8475;
   --line: rgba(230, 224, 207, 0.12);
   --accent: #d2b47a;
   --accent-soft: rgba(210, 180, 122, 0.4);
   --sheet: #23211c;
   --backdrop: rgba(0, 0, 0, 0.6);
-  --session-ink: #6d6758;
-  --label: #8a826c;
+  --session-ink: #8c8677;
+  --label: #a09883;
   --circle-1: rgba(210, 180, 122, 0.22);
   --circle-2: rgba(210, 180, 122, 0.06);
   --l1: rgba(220, 165, 90, 0.42);
   --l2: rgba(95, 150, 150, 0.36);
   --l3: rgba(180, 105, 115, 0.32);
   --card: rgba(27, 26, 22, 0.45);
+  --veil: rgba(27, 26, 22, 0.82);
   --font: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
 }
 [data-theme="dusk"] {
   --bg: #3a414b;
   --ink: #f1ede4;
-  --muted: #b5b2a8;
-  --faint: #878c95;
+  --muted: #d1cec4;
+  --faint: #acaeb1;
   --line: rgba(238, 234, 224, 0.16);
   --accent: #e3c48c;
   --accent-soft: rgba(227, 196, 140, 0.45);
   --sheet: #444b57;
   --backdrop: rgba(10, 12, 16, 0.5);
-  --session-ink: #8e9299;
-  --label: #bdb8aa;
+  --session-ink: #b0b1b3;
+  --label: #cbc6b9;
   --circle-1: rgba(235, 205, 150, 0.26);
   --circle-2: rgba(235, 205, 150, 0.07);
   --l1: rgba(240, 190, 120, 0.48);
   --l2: rgba(125, 185, 190, 0.44);
   --l3: rgba(210, 135, 145, 0.4);
   --card: rgba(58, 65, 75, 0.5);
+  --veil: rgba(58, 65, 75, 0.8);
 }
 [data-theme="day"] {
   --bg: #ede7da;
   --ink: #2f2a21;
-  --muted: #7b7262;
-  --faint: #a59b87;
+  --muted: #574f43;
+  --faint: #6e6657;
   --line: rgba(47, 42, 33, 0.16);
-  --accent: #94702f;
-  --accent-soft: rgba(148, 112, 47, 0.45);
+  --accent: #785c2b;
+  --accent-soft: rgba(120, 92, 43, 0.5);
   --sheet: #f6f1e7;
   --backdrop: rgba(40, 35, 25, 0.3);
-  --session-ink: #8f8572;
-  --label: #6f6655;
+  --session-ink: #6b6354;
+  --label: #5c5445;
   --circle-1: rgba(190, 140, 60, 0.26);
   --circle-2: rgba(190, 140, 60, 0.07);
   --l1: rgba(240, 170, 85, 0.62);
   --l2: rgba(105, 165, 172, 0.52);
   --l3: rgba(215, 135, 148, 0.5);
-  --card: rgba(246, 241, 231, 0.55);
+  --card: rgba(246, 241, 231, 0.6);
+  --veil: rgba(237, 231, 218, 0.82);
 }
 
 * { box-sizing: border-box; }
@@ -299,3 +302,25 @@ header { margin-bottom: 1.6rem; }
 #mood .skip { color: var(--faint); }
 #session.reading > :not(#passage):not(#mood) { opacity: 0; pointer-events: none; transition: opacity 1.5s ease; }
 .modes { flex-wrap: wrap; row-gap: 0; }
+
+/* ---------- veils: the scene stays alive in the middle, calmer where text sits ---------- */
+#home::before, #home::after {
+  content: ''; position: fixed; left: 0; right: 0; z-index: -1; pointer-events: none;
+}
+#home::before { top: 0; height: 36vh; background: linear-gradient(to bottom, var(--veil) 0%, var(--veil) 40%, transparent 100%); }
+#home::after { bottom: 0; height: 50vh; background: linear-gradient(to top, var(--veil) 0%, var(--veil) 38%, transparent 100%); }
+#session::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 45vh; z-index: -1; pointer-events: none;
+  background: linear-gradient(to top, var(--veil) 0%, transparent 100%); opacity: 0.85;
+}
+#session::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse 85% 60% at center, var(--veil) 0%, var(--veil) 45%, transparent 100%);
+  transition: opacity 2s ease;
+}
+#session.reading::before { opacity: 1; }
+/* a soft halo in the background colour behind small text */
+.modes button, .dur, #session-name, #daily, .hint, #remaining, #label, .controls, #j-sub, .sub-label,
+.close-hint, .chapter, .verses p {
+  text-shadow: 0 0 2px var(--veil), 0 0 14px var(--veil);
+}
